@@ -1,0 +1,1012 @@
+/* ===== Global ===== */
+:root {
+  --bg: #0a0a0f;
+  --bg-alt: #13131a;
+  --text: #f2efe9;      /* ~17:1 on --bg */
+  --muted: #b8b3a8;     /* ~9:1 on --bg */
+  --accent: #c9a46a;    /* ~8:1 on --bg */
+  --border: rgba(242, 239, 233, 0.12);
+  --nav-h: 4rem;
+  --font-head: 'Playfair Display', Georgia, serif;
+  --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --max-w: 72rem;
+}
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.65;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-head);
+  line-height: 1.2;
+  margin: 0 0 0.75rem;
+}
+h1 { font-size: clamp(2.5rem, 6vw, 4.5rem); }
+h2 { font-size: clamp(1.75rem, 4vw, 2.75rem); }
+h3 { font-size: 1.25rem; }
+
+p { margin: 0 0 1rem; }
+
+a { color: var(--accent); }
+
+img { max-width: 100%; display: block; }
+
+section { scroll-margin-top: var(--nav-h); }
+
+/* Visible keyboard focus on every interactive element */
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ===== Navigation_Bar ===== */
+.site-header {
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: var(--nav-h);
+  z-index: 100;
+  background: rgba(10, 10, 15, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+
+.nav {
+  max-width: var(--max-w);
+  height: 100%;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nav-logo {
+  font-family: var(--font-head);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.nav-links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 2rem;
+}
+
+.nav-links a {
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 500;
+  padding: 0.25rem 0;
+  border-bottom: 2px solid transparent;
+  transition: color 0.2s, border-color 0.2s;
+}
+.nav-links a:hover { color: var(--accent); border-color: var(--accent); }
+
+.nav-toggle {
+  display: none;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  position: relative;
+}
+
+/* Hamburger icon: one bar plus two pseudo-element bars */
+.nav-toggle-bar,
+.nav-toggle-bar::before,
+.nav-toggle-bar::after {
+  position: absolute;
+  left: 50%;
+  width: 1.25rem;
+  height: 2px;
+  background: var(--text);
+  transform: translateX(-50%);
+  transition: transform 0.2s, opacity 0.2s;
+}
+.nav-toggle-bar { top: 50%; margin-top: -1px; }
+.nav-toggle-bar::before,
+.nav-toggle-bar::after { content: ''; left: 0; transform: none; }
+.nav-toggle-bar::before { top: -6px; }
+.nav-toggle-bar::after { top: 6px; }
+
+.nav-toggle[aria-expanded="true"] .nav-toggle-bar { background: transparent; }
+.nav-toggle[aria-expanded="true"] .nav-toggle-bar::before { transform: translateY(6px) rotate(45deg); }
+.nav-toggle[aria-expanded="true"] .nav-toggle-bar::after { transform: translateY(-6px) rotate(-45deg); }
+
+@media (max-width: 767.98px) {
+  .nav-toggle { display: block; }
+
+  .nav-links {
+    position: absolute;
+    top: var(--nav-h);
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    gap: 0;
+    padding: 0.5rem 1.5rem 1rem;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    display: none;
+  }
+  .nav-links.is-open { display: flex; }
+  .nav-links a { display: block; padding: 0.75rem 0; }
+
+  /* Without JS the toggle can't work, so keep links visible */
+  .no-js .nav-toggle { display: none; }
+  .no-js .nav-links {
+    display: flex;
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0 1rem;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  .no-js .site-header { height: auto; }
+}
+
+/* ===== Buttons ===== */
+.btn {
+  display: inline-block;
+  padding: 0.8rem 1.6rem;
+  border-radius: 999px;
+  font-weight: 600;
+  text-decoration: none;
+  border: 2px solid var(--accent);
+  transition: background-color 0.2s, color 0.2s;
+}
+.btn-primary { background: var(--accent); color: var(--bg); }
+.btn-primary:hover { background: transparent; color: var(--accent); }
+.btn-outline { background: transparent; color: var(--accent); }
+.btn-outline:hover { background: var(--accent); color: var(--bg); }
+
+/* ===== Hero_Section ===== */
+.hero {
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  padding: calc(var(--nav-h) + 2rem) 1.5rem 3rem;
+}
+
+.hero-inner {
+  width: 100%;
+  max-width: var(--max-w);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  align-items: center;
+  gap: 3rem;
+}
+
+.hero-eyebrow {
+  color: var(--accent);
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+}
+
+.hero-name { margin-bottom: 1rem; }
+
+.hero-tagline {
+  color: var(--muted);
+  font-size: 1.125rem;
+  max-width: 34rem;
+  margin-bottom: 2rem;
+}
+
+.hero-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.hero-photo { justify-self: center; }
+
+/* Natural portrait ratio: the full photo is shown, never cropped */
+.hero-photo img {
+  width: auto;
+  max-width: min(100%, 80vh, 40rem);
+  height: auto;
+  border-radius: 1.5rem;
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 3rem rgba(201, 164, 106, 0.25);
+}
+
+@media (max-width: 767.98px) {
+  .hero-inner {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    text-align: center;
+  }
+  .hero-photo { order: -1; }
+  .hero-photo img { max-width: min(100%, 60vh); margin-inline: auto; }
+  .hero-tagline { margin-inline: auto; }
+  .hero-ctas { justify-content: center; }
+}
+
+/* ===== Shared section styles ===== */
+.section-title {
+  color: var(--text);
+  margin-bottom: 1.5rem;
+}
+.section-title::after {
+  content: '';
+  display: block;
+  width: 3.5rem;
+  height: 3px;
+  margin-top: 0.75rem;
+  background: var(--accent);
+}
+
+/* ===== About_Section + Background_Artwork ===== */
+.about {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background-color: var(--bg-alt); /* fallback if the artwork fails to load */
+  padding: 6rem 1.5rem;
+}
+
+/* Taller than the section so parallax movement never reveals an edge */
+.about-bg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -15%;
+  height: 130%;
+  z-index: -1;
+  background-image:
+    linear-gradient(rgba(5, 5, 10, 0.6), rgba(5, 5, 10, 0.7)),
+    url('../assets/creation-of-adam.jpeg');
+  /* contain shows the whole artwork instead of a stretched, cropped slice */
+  background-size: auto, contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  will-change: transform;
+}
+
+.about-inner {
+  max-width: var(--max-w);
+  margin: 0 auto;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8); /* keeps text legible over the lighter overlay */
+}
+
+.about-summary {
+  max-width: 48rem;
+  font-size: 1.125rem;
+  color: var(--text);
+  margin-bottom: 3rem;
+}
+
+.about-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2.5rem;
+}
+
+.about-heading {
+  color: var(--accent);
+  font-size: 1.375rem;
+  margin-bottom: 1.25rem;
+}
+
+.timeline-item {
+  position: relative;
+  padding: 0 0 1.5rem 1.5rem;
+  border-left: 2px solid rgba(201, 164, 106, 0.4);
+}
+.timeline-item:last-child { padding-bottom: 0; }
+.timeline-item::before {
+  content: '';
+  position: absolute;
+  left: -7px;
+  top: 0.45rem;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.timeline-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0 1rem;
+}
+.timeline-head h4 {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+.timeline-head .org { color: var(--muted); font-weight: 500; }
+
+.timeline-meta {
+  margin: 0;
+  color: var(--accent);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.timeline-org { color: var(--muted); margin: 0.25rem 0 0.25rem; }
+.timeline-score { margin: 0; font-weight: 500; }
+
+.timeline-points {
+  margin: 0.5rem 0 0;
+  padding-left: 1.1rem;
+  color: var(--muted);
+}
+.timeline-points li { margin-bottom: 0.35rem; }
+
+@media (max-width: 767.98px) {
+  .about { padding: 4rem 1.25rem; }
+  .about-grid { grid-template-columns: 1fr; }
+}
+
+/* Reduced motion: static artwork, no parallax transform */
+@media (prefers-reduced-motion: reduce) {
+  .about-bg {
+    top: 0;
+    height: 100%;
+    transform: none !important;
+    will-change: auto;
+  }
+}
+
+/* ===== Skills_Section + Achievements_Section ===== */
+.skills,
+.achievements { padding: 6rem 1.5rem; }
+.achievements { background: var(--bg-alt); }
+
+.section-inner {
+  max-width: var(--max-w);
+  margin: 0 auto;
+}
+
+.skills-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2rem;
+}
+
+.skill-group {
+  padding: 1.5rem;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+}
+.skill-group h3 { color: var(--accent); margin-bottom: 1rem; }
+
+.chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+.chips li {
+  padding: 0.4rem 0.9rem;
+  border: 1px solid rgba(201, 164, 106, 0.45);
+  border-radius: 999px;
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+
+.achievement-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+}
+.achievement-list li {
+  padding: 1.5rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 0.75rem;
+}
+.achievement-list h3 { font-size: 1.125rem; margin-bottom: 0.25rem; }
+.achievement-list p { margin: 0; color: var(--muted); }
+.achievement-list .achievement-meta {
+  color: var(--accent);
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+@media (max-width: 767.98px) {
+  .skills,
+  .achievements { padding: 4rem 1.25rem; }
+  .skills-grid,
+  .achievement-list { grid-template-columns: 1fr; }
+}
+
+/* ===== Projects_Section + Projects drum ===== */
+.projects { padding: 6rem 1.5rem; }
+
+/* Base layout (no JS, reduced motion): a plain vertical list */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.project-card {
+  position: relative;
+  min-height: min(28rem, 70vh);
+  padding: 2.5rem;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(160deg, #1a1a23, var(--bg-alt));
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--accent);
+  border-radius: 1.25rem;
+}
+
+.project-num {
+  font-family: var(--font-head);
+  font-size: 3rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--accent);
+  margin-bottom: 1rem;
+}
+
+.project-card h3 { font-size: clamp(1.375rem, 3vw, 1.875rem); }
+
+.project-desc {
+  max-width: 48rem;
+  color: var(--muted);
+  font-size: 1.0625rem;
+}
+
+.project-tech { margin-bottom: 2rem; }
+
+.project-link { align-self: flex-start; margin-top: auto; }
+
+@media (max-width: 767.98px) {
+  .projects { padding: 4rem 1.25rem; }
+  .project-card { padding: 1.75rem 1.5rem; }
+  .project-num { font-size: 2.25rem; }
+}
+
+/* Drum mode (JS adds .pd-on). The cards sit side by side on a drum that turns about its
+   vertical axis, so they roll in horizontally as the visitor scrolls. The stage pins below
+   the nav while the track (height set by JS) provides the scroll distance. JS positions each
+   card per frame with translate3d + rotateY and sets --shade for edge darkening. */
+.pd-on .stack {
+  display: block;
+  gap: 0;
+  position: relative;
+}
+
+.pd-stage {
+  position: sticky;
+  top: var(--nav-h);
+  height: calc(100vh - var(--nav-h));
+  height: calc(100svh - var(--nav-h));
+  overflow: hidden;
+  perspective-origin: 50% 50%;
+}
+
+.pd-drum {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+/* Portrait cards, narrow enough that two neighbours curve away on each side of the front card */
+.pd-on .project-card {
+  --card-w: min(26vw, 21rem, calc((100svh - var(--nav-h) - 3rem) / 1.42));
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--card-w);
+  height: calc(var(--card-w) * 1.42);
+  min-height: 0;
+  padding: 1.5rem 1.4rem 1.25rem;
+  overflow: hidden;
+  color: #fff;
+  border: 0;
+  border-radius: 1.25rem;
+  background: var(--card-bg);
+  box-shadow: 0 1.5rem 3rem rgba(0, 0, 0, 0.45);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translate(-50%, -50%);
+  will-change: transform, opacity;
+  cursor: pointer;
+}
+.pd-on .project-card.is-front { cursor: auto; }
+
+/* One gradient per project, tuned for the dark page */
+.pd-on .project-card:nth-child(4n + 1) {
+  --card-bg: radial-gradient(120% 80% at 30% 20%, #f0c27b 0%, transparent 60%), linear-gradient(160deg, #c9a46a, #7a4e1d 70%, #3d2610);
+}
+.pd-on .project-card:nth-child(4n + 2) {
+  --card-bg: radial-gradient(120% 80% at 70% 15%, #6ee7c8 0%, transparent 60%), linear-gradient(160deg, #1fa58a, #0d5c57 65%, #062e2f);
+}
+.pd-on .project-card:nth-child(4n + 3) {
+  --card-bg: radial-gradient(120% 80% at 30% 10%, #ff9a6b 0%, transparent 60%), linear-gradient(160deg, #e8522f, #a0261b 65%, #4a0f0c);
+}
+.pd-on .project-card:nth-child(4n + 4) {
+  --card-bg: radial-gradient(120% 80% at 70% 15%, #8fb3ff 0%, transparent 60%), linear-gradient(160deg, #4a73e8, #2b3fa8 65%, #141c52);
+}
+
+/* Glossy highlight, like a lit curved surface */
+.pd-on .project-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(115deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 38%);
+  pointer-events: none;
+}
+
+/* Edge shading: JS writes --shade (0 in front .. 0.85 at the drum's edge) */
+.pd-on .project-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: #000;
+  opacity: var(--shade, 0);
+  pointer-events: none;
+}
+
+/* Compact content for the portrait face */
+.pd-on .project-num {
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.75);
+  margin-bottom: 0.6rem;
+}
+.pd-on .project-card h3 {
+  font-size: clamp(1.05rem, 1.6vw, 1.35rem);
+  color: #fff;
+  margin-bottom: 0.6rem;
+}
+.pd-on .project-desc {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+  line-clamp: 6;
+  overflow: hidden;
+}
+.pd-on .project-tech { margin: 0.25rem 0 1rem; gap: 0.4rem; }
+.pd-on .project-tech li {
+  padding: 0.2rem 0.6rem;
+  font-size: 0.75rem;
+  border-color: rgba(255, 255, 255, 0.45);
+  background: rgba(0, 0, 0, 0.15);
+}
+.pd-on .project-link {
+  padding: 0.55rem 1.1rem;
+  font-size: 0.875rem;
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.85);
+}
+.pd-on .project-link:hover { background: #fff; color: #111; }
+.pd-on .project-link:focus-visible { outline-color: #fff; }
+
+@media (max-width: 1023.98px) {
+  .pd-on .project-card { --card-w: min(40vw, 20rem, calc((100svh - var(--nav-h) - 3rem) / 1.42)); }
+}
+@media (max-width: 767.98px) {
+  .pd-on .project-card {
+    --card-w: min(64vw, 18rem, calc((100svh - var(--nav-h) - 3rem) / 1.42));
+    padding: 1.25rem 1.1rem 1rem;
+  }
+  .pd-on .project-desc { -webkit-line-clamp: 5; line-clamp: 5; }
+}
+
+/* Hidden until the roll-in starts; JS removes .pd-pending in the same frame it animates */
+.pd-pending .projects-reveal,
+.pd-pending .pd-stage { opacity: 0; }
+
+/* ===== Contact_Section ===== */
+.contact { padding: 6rem 1.5rem; }
+
+.contact-intro {
+  max-width: 40rem;
+  color: var(--muted);
+  font-size: 1.125rem;
+  margin-bottom: 2.5rem;
+}
+
+.contact-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.25rem;
+}
+.contact-list li {
+  padding: 1.25rem 1.5rem;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  min-width: 0;
+}
+.contact-label {
+  display: block;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 0.25rem;
+}
+.contact-list a {
+  font-size: 1.0625rem;
+  font-weight: 500;
+  overflow-wrap: anywhere; /* long email/URLs never force horizontal scroll */
+}
+
+/* ===== Footer ===== */
+.site-footer {
+  max-width: var(--max-w);
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+.site-footer p { margin: 0; }
+
+@media (max-width: 767.98px) {
+  .contact { padding: 4rem 1.25rem; }
+  .contact-list { grid-template-columns: 1fr; }
+  .site-footer { flex-direction: column; text-align: center; }
+}
+
+/* ===== Footer replay button ===== */
+.replay-btn {
+  min-height: 2.75rem;
+  padding: 0.5rem 1.1rem;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+}
+.replay-btn:hover { background: var(--accent); color: var(--bg); }
+.no-js .replay-btn { display: none; } /* needs JS to work */
+
+/* ===== Drum_Intro ===== */
+/* Scroll lock. scrollbar-gutter keeps the layout from shifting when the scrollbar toggles. */
+html.is-intro {
+  overflow: hidden;
+  scrollbar-gutter: stable;
+  overscroll-behavior: none;
+}
+
+.drum-intro {
+  /* Defaults sized so one face is exactly one viewport tall (8 faces: R = H / (2 * tan 22.5deg)).
+     JS overrides both variables from the live viewport height. */
+  --drum-face-h: 100vh;
+  --drum-r: 120.71vh;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  max-width: 100vw;
+  overflow: hidden;
+  contain: layout paint;
+  pointer-events: auto;
+  background: transparent; /* the hero shows through the window face once the drum has rolled */
+  transition: opacity 0.3s linear;
+}
+.drum-intro.is-fading { opacity: 0; pointer-events: none; }
+.drum-intro[hidden] { display: none; }
+
+/* Perspective lives here (not on .drum-intro) because this node carries the blur filter. */
+.drum-scene {
+  position: absolute;
+  inset: 0;
+  perspective: calc(var(--drum-r) * 3);
+  perspective-origin: 50% 50%;
+  filter: var(--drum-filter, none);
+}
+
+.drum-cylinder {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 0;
+  transform-style: preserve-3d;
+  /* Individual property so the WAAPI rotateX on `transform` composes with it */
+  translate: 0 0 calc(var(--drum-r) * -1);
+}
+.drum-cylinder.is-animating { will-change: transform; }
+
+.drum-face {
+  --light: linear-gradient(180deg, rgba(242, 239, 233, 0.06), rgba(0, 0, 0, 0) 35%, rgba(0, 0, 0, 0.4));
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: var(--drum-face-h);
+  margin-top: calc(var(--drum-face-h) / -2);
+  display: grid;
+  place-content: center;
+  gap: 0.75rem;
+  overflow: hidden;
+  text-align: center;
+  color: var(--text);
+  background: var(--light), var(--bg);
+  box-shadow: inset 0 1px 0 rgba(201, 164, 106, 0.18), inset 0 -1px 0 rgba(201, 164, 106, 0.18);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: rotateX(calc(var(--i, 0) * 45deg)) translateZ(var(--drum-r));
+}
+
+/* Lighting: JS writes --shade (0 facing .. 0.65 edge-on) per frame */
+.drum-face::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: var(--shade, 0);
+  pointer-events: none;
+}
+
+/* Intro_Face */
+.drum-label {
+  margin: 0;
+  color: var(--accent);
+  font-size: clamp(0.75rem, 2.4vw, 1rem);
+  font-weight: 500;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+}
+.drum-title {
+  margin: 0;
+  font-size: clamp(2.75rem, 15vw, 11rem);
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+
+/* Decorative text lives in ::before so faces need no inner markup */
+.drum-face[data-variant]::before {
+  font-family: var(--font-head);
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* 1: outline type */
+.drum-face[data-variant="1"]::before {
+  content: 'PORTFOLIO';
+  font-size: clamp(2rem, 12vw, 10rem);
+  color: transparent;
+  -webkit-text-stroke: 2px var(--accent);
+}
+
+/* 2: grid lines */
+.drum-face[data-variant="2"] {
+  background:
+    var(--light),
+    linear-gradient(rgba(201, 164, 106, 0.16) 1px, transparent 1px) 0 0 / 4rem 4rem,
+    linear-gradient(90deg, rgba(201, 164, 106, 0.16) 1px, transparent 1px) 0 0 / 4rem 4rem,
+    var(--bg);
+}
+
+/* 3: gradient blobs */
+.drum-face[data-variant="3"] {
+  background:
+    var(--light),
+    radial-gradient(circle at 22% 30%, rgba(201, 164, 106, 0.5), transparent 45%),
+    radial-gradient(circle at 80% 72%, rgba(184, 179, 168, 0.28), transparent 50%),
+    var(--bg);
+}
+
+/* 4: noise texture from stacked conic patterns */
+.drum-face[data-variant="4"] {
+  background:
+    var(--light),
+    repeating-conic-gradient(rgba(242, 239, 233, 0.06) 0% 25%, transparent 0% 50%) 0 0 / 4px 4px,
+    repeating-conic-gradient(rgba(201, 164, 106, 0.05) 0% 25%, transparent 0% 50%) 1px 2px / 7px 7px,
+    var(--bg-alt);
+}
+
+/* 5: index numbers */
+.drum-face[data-variant="5"]::before {
+  content: '05';
+  font-size: clamp(6rem, 34vw, 24rem);
+  color: rgba(201, 164, 106, 0.85);
+}
+
+/* 6: grid + blob + year */
+.drum-face[data-variant="6"] {
+  background:
+    var(--light),
+    radial-gradient(circle at 70% 35%, rgba(201, 164, 106, 0.35), transparent 50%),
+    linear-gradient(rgba(242, 239, 233, 0.07) 1px, transparent 1px) 0 0 / 100% 3rem,
+    var(--bg);
+}
+.drum-face[data-variant="6"]::before {
+  content: '2026';
+  font-size: clamp(3rem, 18vw, 14rem);
+  color: transparent;
+  -webkit-text-stroke: 1px var(--text);
+}
+
+/* 7: window. Transparent, so the hero shows when this face reaches the front. */
+.drum-face[data-variant="7"] {
+  background: none;
+  box-shadow: none;
+}
+.drum-face[data-variant="7"]::after { display: none; }
+
+/* Shadow cast on the hero; JS moves it with the trailing edge */
+.drum-shadow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 35vh;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0));
+  transform: translate3d(0, -100%, 0);
+  opacity: 0;
+  pointer-events: none;
+}
+.drum-shadow.is-animating { will-change: transform, opacity; }
+
+/* Skip_Button */
+.drum-skip {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  z-index: 1001;
+  min-height: 2.75rem;
+  padding: 0.5rem 1.25rem;
+  background: rgba(10, 10, 15, 0.7);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+}
+.drum-skip:hover { background: var(--accent); color: var(--bg); }
+
+/* ===== Hero Stagger_Sequence (only when JS is running) ===== */
+.js-intro [data-stagger] {
+  opacity: 0;
+  transform: translate3d(0, 24px, 0);
+}
+.js-intro [data-stagger="5"] { transform: translate3d(0, 24px, 0) scale(0.96); }
+
+[data-stagger="0"] { --s: 0; }
+[data-stagger="1"] { --s: 1; }
+[data-stagger="2"] { --s: 2; }
+[data-stagger="3"] { --s: 3; }
+[data-stagger="4"] { --s: 4; }
+[data-stagger="5"] { --s: 5; }
+
+/* Final state. JS adds .is-staggered (on html) at 70 percent of the roll. */
+.js-intro.is-staggered [data-stagger] {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: calc(var(--s) * 110ms);
+}
+
+/* ===== Drum_Intro reduced motion: overlay fade only, opacity-only stagger ===== */
+@media (prefers-reduced-motion: reduce) {
+  .drum-intro { background: var(--bg); }
+  .drum-cylinder,
+  .drum-shadow,
+  .drum-skip { display: none; }
+  .drum-intro { transition-duration: 0.3s !important; }
+
+  .js-intro [data-stagger],
+  .js-intro [data-stagger="5"] { transform: none; }
+  .js-intro.is-staggered [data-stagger] {
+    transition-property: opacity;
+    transition-duration: 0.3s !important;
+  }
+}
+
+/* Heading roll-in (Projects drum): the axis runs through the heading's centre */
+.pd-on .projects-reveal {
+  transform-origin: 50% 50%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* ===== TechText headings ===== */
+/* JS swaps a heading's text for a visually hidden copy plus a canvas host (see js/tech-text.js).
+   The host is a little taller than the line so the selection frame and its label fit; the
+   negative margins keep the heading's original vertical rhythm. */
+.tech-text {
+  position: relative;
+  touch-action: pan-y;
+  user-select: none;
+}
+.tech-text-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.tt-on { position: relative; }
+.tt-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.tt-host {
+  display: block;
+  width: 100%;
+  height: 1.7em;
+  margin-block: -0.25em;
+}
