@@ -1015,7 +1015,9 @@ html.is-intro {
 /* Dark overlay keeps the white card text legible; the card's own gradient underneath is the
    fallback if the image is missing or still loading. */
 .project-card.project-card--toss,
-.project-card.project-card--angel {
+.project-card.project-card--taskflow,
+.project-card.project-card--angel,
+.project-card.project-card--collabcode {
   --card-overlay: linear-gradient(180deg, rgba(10, 10, 15, 0.55), rgba(10, 10, 15, 0.35) 40%, rgba(10, 10, 15, 0.8));
   background: var(--card-bg);
 }
@@ -1029,6 +1031,15 @@ html.is-intro {
     linear-gradient(160deg, #c9a46a, #7a4e1d 70%, #3d2610);
 }
 
+/* TaskFlow: Temptation */
+.project-card.project-card--taskflow,
+.pd-on .project-card.project-card--taskflow {
+  --card-bg:
+    var(--card-overlay),
+    url('../assets/Temptation.jpeg') center / cover no-repeat,
+    linear-gradient(160deg, #1fa58a, #0d5c57 65%, #062e2f);
+}
+
 /* Angel AI */
 .project-card.project-card--angel,
 .pd-on .project-card.project-card--angel {
@@ -1036,4 +1047,13 @@ html.is-intro {
     var(--card-overlay),
     url('../assets/angel-ai-bg.jpg') center / cover no-repeat,
     linear-gradient(160deg, #e8522f, #a0261b 65%, #4a0f0c);
+}
+
+/* Collabcode IDE */
+.project-card.project-card--collabcode,
+.pd-on .project-card.project-card--collabcode {
+  --card-bg:
+    var(--card-overlay),
+    url('../assets/download.jpeg') center / cover no-repeat,
+    linear-gradient(160deg, #4a73e8, #2b3fa8 65%, #141c52);
 }
