@@ -1010,3 +1010,30 @@ html.is-intro {
   height: 1.7em;
   margin-block: -0.25em;
 }
+
+/* ===== Project card background images ===== */
+/* Dark overlay keeps the white card text legible; the card's own gradient underneath is the
+   fallback if the image is missing or still loading. */
+.project-card.project-card--toss,
+.project-card.project-card--angel {
+  --card-overlay: linear-gradient(180deg, rgba(10, 10, 15, 0.55), rgba(10, 10, 15, 0.35) 40%, rgba(10, 10, 15, 0.8));
+  background: var(--card-bg);
+}
+
+/* TOSS: scene from The Odyssey */
+.project-card.project-card--toss,
+.pd-on .project-card.project-card--toss {
+  --card-bg:
+    var(--card-overlay),
+    url('../assets/toss-bg.jpg') center / cover no-repeat,
+    linear-gradient(160deg, #c9a46a, #7a4e1d 70%, #3d2610);
+}
+
+/* Angel AI */
+.project-card.project-card--angel,
+.pd-on .project-card.project-card--angel {
+  --card-bg:
+    var(--card-overlay),
+    url('../assets/angel-ai-bg.jpg') center / cover no-repeat,
+    linear-gradient(160deg, #e8522f, #a0261b 65%, #4a0f0c);
+}
