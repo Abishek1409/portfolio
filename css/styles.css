@@ -16,7 +16,14 @@
 *::before,
 *::after { box-sizing: border-box; }
 
-html { scroll-behavior: smooth; }
+/* Hide the page scrollbar (scrolling with wheel, touch and keys still works) */
+html {
+  scroll-behavior: smooth;
+  scrollbar-width: none;      /* Firefox */
+  -ms-overflow-style: none;   /* old Edge */
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar { display: none; width: 0; height: 0; } /* Chrome, Edge, Safari */
 
 body {
   margin: 0;
@@ -691,6 +698,131 @@ section { scroll-margin-top: var(--nav-h); }
   -webkit-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* ===== Painting cards + details panel ===== */
+/* In drum mode a card is just the painting with its title on top. JS moves the description,
+   tech stack and links into .pd-panel, a separate box below the drum, shown on click. */
+.pd-on .project-card {
+  justify-content: flex-start;
+  outline: none;
+}
+.pd-on .project-card:focus-visible {
+  box-shadow: 0 0 0 3px var(--accent), 0 1.5rem 3rem rgba(0, 0, 0, 0.45);
+}
+
+/* Light scrim only behind the title, so the painting stays fully visible */
+.project-card.project-card--toss,
+.project-card.project-card--taskflow,
+.project-card.project-card--angel,
+.project-card.project-card--collabcode,
+.project-card.project-card--bfs {
+  --card-overlay: linear-gradient(180deg, rgba(6, 6, 10, 0.75) 0%, rgba(6, 6, 10, 0.25) 28%, rgba(6, 6, 10, 0) 45%);
+}
+
+.pd-on .project-card h3 {
+  font-size: clamp(1.15rem, 1.8vw, 1.5rem);
+  line-height: 1.25;
+  margin: 0;
+}
+
+/* Small prompt at the bottom of the front card */
+.pd-hint { display: none; }
+.pd-on .project-card.is-front .pd-hint {
+  display: inline-block;
+  align-self: center;
+  margin-top: auto;
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(6, 6, 10, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-shadow: none;
+}
+.pd-on .project-card.is-front[aria-expanded="true"] .pd-hint { visibility: hidden; }
+@media (hover: hover) {
+  .pd-on .project-card.is-front .pd-hint::before { content: 'Click for details'; }
+  .pd-on .project-card.is-front .pd-hint { font-size: 0; }
+  .pd-on .project-card.is-front .pd-hint::before { font-size: 0.75rem; }
+}
+
+/* While details are open, the drum moves up so the panel never covers a painting */
+.pd-drum { transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1); }
+.pd-stage.has-details .pd-drum { transform: translateY(var(--pd-shift, -24%)); }
+
+.pd-panel {
+  position: absolute;
+  left: 50%;
+  bottom: 1rem;
+  z-index: 5;
+  width: min(92%, 40rem);
+  max-height: 46%;
+  overflow: auto;
+  padding: 1rem 1.25rem 1.25rem;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--accent);
+  border-radius: 1rem;
+  box-shadow: 0 1rem 2.5rem rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  transform: translate(-50%, 1rem);
+  transition: opacity 0.3s ease, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.pd-panel[hidden] { display: none; }
+.pd-panel.is-open { opacity: 1; transform: translate(-50%, 0); }
+
+.pd-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+.pd-panel-title {
+  margin: 0;
+  font-size: 1.125rem;
+  color: var(--text);
+}
+.pd-panel-close {
+  flex: none;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin: -0.5rem -0.5rem 0 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--muted);
+  font-size: 1.75rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.pd-panel-close:hover { color: var(--accent); background: rgba(242, 239, 233, 0.06); }
+
+.pd-panel .project-badge { margin-bottom: 0.6rem; }
+.pd-panel .project-desc {
+  display: block;
+  -webkit-line-clamp: unset;
+  line-clamp: none;
+  overflow: visible;
+  max-width: none;
+  color: var(--text);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  margin-bottom: 0.75rem;
+}
+/* The painting face shows the title only */
+.pd-on .pd-drum .project-num { display: none; }
+.pd-panel .project-tech { margin: 0 0 1rem; gap: 0.4rem; }
+.pd-panel .project-tech li { font-size: 0.8125rem; padding: 0.25rem 0.7rem; }
+.pd-panel .project-links { margin-top: 0; }
+.pd-panel .project-link { margin-top: 0; }
+
+@media (max-width: 767.98px) {
+  .pd-panel { width: calc(100% - 1.5rem); max-height: 50%; padding: 0.9rem 1rem 1rem; }
+  .pd-stage.has-details .pd-drum { transform: translateY(var(--pd-shift, -26%)) scale(0.8); }
 }
 
 /* Hidden until the roll-in starts; JS removes .pd-pending in the same frame it animates */

@@ -474,6 +474,85 @@ function initProjectsDrum() {
   track.appendChild(stage);
   section.classList.add('pd-on', 'pd-pending');
 
+  // Painting cards: each face shows only its artwork and title. The description, tech stack and
+  // links move out of the card into one details panel below the drum, shown on click.
+  const details = cards.map((card) => {
+    const body = document.createElement('div');
+    body.className = 'pd-detail-body';
+    // Direct children only, so buttons inside .project-links move together with their wrapper
+    Array.from(card.children)
+      .filter((el) => el.matches('.project-badge, .project-desc, .project-tech, .project-links, .project-link'))
+      .forEach((el) => body.appendChild(el));
+    const h3 = card.querySelector('h3');
+    const hint = document.createElement('span');
+    hint.className = 'pd-hint';
+    hint.setAttribute('aria-hidden', 'true');
+    hint.textContent = 'Tap for details';
+    card.appendChild(hint);
+    card.setAttribute('role', 'button');
+    card.setAttribute('tabindex', '0');
+    card.setAttribute('aria-expanded', 'false');
+    return { body, title: h3 ? h3.textContent.trim() : '' };
+  });
+
+  const panel = document.createElement('div');
+  panel.className = 'pd-panel';
+  panel.id = 'pd-panel';
+  panel.hidden = true;
+  panel.setAttribute('role', 'region');
+  panel.setAttribute('aria-live', 'polite');
+  const panelHead = document.createElement('div');
+  panelHead.className = 'pd-panel-head';
+  const panelTitle = document.createElement('h3');
+  panelTitle.className = 'pd-panel-title';
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'pd-panel-close';
+  closeBtn.setAttribute('aria-label', 'Close project details');
+  closeBtn.textContent = '\u00d7';
+  panelHead.append(panelTitle, closeBtn);
+  const panelBody = document.createElement('div');
+  panelBody.className = 'pd-panel-content';
+  panel.append(panelHead, panelBody);
+  // Inside the (sticky) stage, so it is on screen while the drum is pinned; CSS moves the drum
+  // up while it is open so the panel sits below the paintings rather than over them
+  stage.appendChild(panel);
+  cards.forEach((card) => card.setAttribute('aria-controls', 'pd-panel'));
+
+  let openIndex = -1;
+  function openDetails(i) {
+    if (i < 0 || i >= count) return;
+    if (openIndex === i) { closeDetails(); return; }
+    openIndex = i;
+    panelTitle.textContent = details[i].title;
+    panelBody.replaceChildren(details[i].body);
+    panel.hidden = false;
+    panel.classList.remove('is-open');
+    void panel.offsetWidth; // restart the entrance transition
+    panel.classList.add('is-open');
+    stage.classList.add('has-details');
+    cards.forEach((c, k) => c.setAttribute('aria-expanded', String(k === i)));
+  }
+  function closeDetails() {
+    if (openIndex < 0) return;
+    const was = cards[openIndex];
+    openIndex = -1;
+    panel.classList.remove('is-open');
+    panel.hidden = true;
+    stage.classList.remove('has-details');
+    cards.forEach((c) => c.setAttribute('aria-expanded', 'false'));
+    return was;
+  }
+  closeBtn.addEventListener('click', () => {
+    const was = closeDetails();
+    if (was) was.focus({ preventScroll: true });
+  });
+  panel.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const was = closeDetails();
+    if (was) was.focus({ preventScroll: true });
+  });
+
   let navH = 0;
   let stageH = 0;
   let distance = 0;
@@ -520,6 +599,8 @@ function initProjectsDrum() {
       // Front card is interactive; visible neighbours can be clicked to bring them to the front
       const front = Math.abs(i - pos) < 0.5;
       card.classList.toggle('is-front', front);
+      // Details belong to the front card: close them when another card rolls to the front
+      if (!front && openIndex === i) closeDetails();
       card.style.pointerEvents = Math.abs(i - pos) < 1.6 ? '' : 'none';
     });
   }
@@ -640,16 +721,29 @@ function initProjectsDrum() {
     wake();
   }
 
-  // Clicking a side card rolls it to the front instead of following its link
-  track.addEventListener('click', (e) => {
+  // Click a side card: roll it to the front. Click the front card: open/close its details.
+  stage.addEventListener('click', (e) => {
     const card = e.target.closest('.project-card');
-    if (!card || card.classList.contains('is-front')) return;
-    e.preventDefault();
-    goTo(cards.indexOf(card), true);
+    if (!card) return;
+    const i = cards.indexOf(card);
+    if (card.classList.contains('is-front')) {
+      openDetails(i);
+    } else {
+      e.preventDefault();
+      goTo(i, true);
+    }
   });
 
-  // Keyboard users: focusing a link on a card that is not in front turns the drum to it
-  track.addEventListener('focusin', (e) => {
+  // Keyboard: Enter/Space on a card does the same as a click; focusing a side card turns to it
+  stage.addEventListener('keydown', (e) => {
+    const card = e.target.closest('.project-card');
+    if (!card || (e.key !== 'Enter' && e.key !== ' ')) return;
+    e.preventDefault();
+    const i = cards.indexOf(card);
+    if (!card.classList.contains('is-front')) goTo(i, false);
+    openDetails(i);
+  });
+  stage.addEventListener('focusin', (e) => {
     const card = e.target.closest('.project-card');
     if (card && !card.classList.contains('is-front')) goTo(cards.indexOf(card), false);
   });
@@ -660,6 +754,7 @@ function initProjectsDrum() {
 
   stage.addEventListener('pointerdown', (e) => {
     if (!swipeMode || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    if (e.target.closest('.pd-panel')) return; // swiping inside the details box never turns the drum
     drag = { x: e.clientX, y: e.clientY, start: target, active: false, lastX: e.clientX, lastT: e.timeStamp, v: 0 };
   });
 
@@ -788,8 +883,8 @@ function initTechText() {
 
 if (typeof document !== 'undefined') {
   document.addEventListener('DOMContentLoaded', () => {
-    // TechText is disabled: its canvas rendering left letters chopped or half-outlined in the
-    // hero name and section titles. Headings stay real HTML text. Call initTechText() to re-enable.
+    // TechText on the hero name and section titles (mouse devices only; touch keeps plain text)
+    initTechText();
     // Runs once per load; anchor navigation never re-triggers it. Replay is the footer button.
     initDrumIntro({ replayBtn: document.querySelector('.replay-btn') }).play();
     initNav();

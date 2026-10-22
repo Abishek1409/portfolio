@@ -256,9 +256,65 @@
           dashes: sprite(s, next, base, true)
         }));
       });
+
+      // Whole word rendered in one pass with real kerning: used whenever a letter is resting,
+      // so overlapping serifs never get clipped at sprite edges (the "chopped letters" bug)
+      const wordSprite = document.createElement('canvas');
+      wordSprite.width = canvas.width;
+      wordSprite.height = canvas.height;
+      const wc = wordSprite.getContext('2d');
+      if (wc) {
+        wc.setTransform(dpr, 0, 0, dpr, 0, 0);
+        setFont(wc, s, size);
+        wc.fillStyle = s.color;
+        wc.fillText(s.text, x, baseline);
+      }
+      next.sprite = wordSprite;
+
       dragging = -1;
       frame.index = -1;
       return next;
+    };
+
+    let wordBuf = null;
+
+    /** Draw the solid word, punching out any letter that is outlined or dragged away. */
+    const drawWord = () => {
+      if (!word || !word.sprite) return;
+      const busy = glyphs.filter((g) => g.outline > 0.001 || Math.hypot(g.offset.x, g.offset.y) > 0.5);
+      if (!busy.length) {
+        ctx.drawImage(word.sprite, 0, 0);
+        return;
+      }
+      // Copy the word, erase the busy letters' areas, draw the rest in one go
+      if (!wordBuf) wordBuf = document.createElement('canvas');
+      if (wordBuf.width !== canvas.width || wordBuf.height !== canvas.height) {
+        wordBuf.width = canvas.width;
+        wordBuf.height = canvas.height;
+      }
+      const bc = wordBuf.getContext('2d');
+      if (!bc) { ctx.drawImage(word.sprite, 0, 0); return; }
+      bc.setTransform(1, 0, 0, 1, 0, 0);
+      bc.globalCompositeOperation = 'source-over';
+      bc.clearRect(0, 0, wordBuf.width, wordBuf.height);
+      bc.drawImage(word.sprite, 0, 0);
+      bc.globalCompositeOperation = 'destination-out';
+      for (const g of busy) {
+        bc.drawImage(g.fill.image, Math.round(g.fill.left * dpr), Math.round(g.fill.top * dpr));
+      }
+      bc.globalCompositeOperation = 'source-over';
+      ctx.drawImage(wordBuf, 0, 0);
+      for (const g of busy) {
+        if (g.outline < 0.999) {
+          ctx.globalAlpha = 1 - g.outline;
+          blit(ctx, g.fill, g.offset.x, g.offset.y, 0, 0);
+        }
+        if (g.outline > 0.001) {
+          ctx.globalAlpha = g.outline;
+          blit(ctx, g.dashes, g.offset.x, g.offset.y, 0, 0);
+        }
+        ctx.globalAlpha = 1;
+      }
     };
 
     const glyphAt = (x, y) => {
@@ -552,17 +608,7 @@
           ctx.globalAlpha = 1;
         }
       }
-      for (const glyph of glyphs) {
-        if (glyph.outline < 0.999) {
-          ctx.globalAlpha = 1 - glyph.outline;
-          blit(ctx, glyph.fill, glyph.offset.x, glyph.offset.y, 0, 0);
-        }
-        if (glyph.outline > 0.001) {
-          ctx.globalAlpha = glyph.outline;
-          blit(ctx, glyph.dashes, glyph.offset.x, glyph.offset.y, 0, 0);
-        }
-        ctx.globalAlpha = 1;
-      }
+      drawWord();
       if (presence > 0.001) drawReveal(s);
       drawFrame(s);
 
@@ -594,7 +640,7 @@
       ctx.globalCompositeOperation = 'source-over';
       ctx.globalAlpha = 1;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      for (const glyph of glyphs) blit(ctx, glyph.fill, 0, 0, 0, 0);
+      if (word && word.sprite) ctx.drawImage(word.sprite, 0, 0);
     }
 
     function wake() {
