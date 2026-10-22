@@ -412,8 +412,8 @@ function drumReveal(el, options) {
 const PD_RADIUS = 2;             // drum radius as a multiple of card width (two neighbours visible per side)
 const PD_GAP = 0.22;             // spacing between cards as a fraction of card width
 // Mobile drum: tighter and seen from closer, so the curve reads clearly on a narrow screen
-// Neighbours sit ~67deg round the drum, so they show as curved slivers at both screen edges
-const PD_RADIUS_M = 0.9;
+// Full-size cards: neighbours sit ~60deg round the drum and peek in as curved edges at both sides
+const PD_RADIUS_M = 1;
 const PD_GAP_M = 0.05;
 const PD_PERSPECTIVE_M = 2.2;    // perspective distance in card widths (desktop uses radius * 3)
 const PD_SHADE = 0.85;           // max edge darkness

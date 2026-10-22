@@ -668,13 +668,11 @@ section { scroll-margin-top: var(--nav-h); }
 /* Narrower cards on a tighter drum, so the neighbours stay on screen curving away at both
    edges and the swipe visibly turns a drum rather than sliding one card */
 .pd-swipe .project-card {
-  --card-w: min(52vw, 17rem, calc((min(78svh, 40rem) - 2rem) / 1.42));
+  --card-w: min(72vw, 20rem, calc((min(78svh, 40rem) - 2rem) / 1.42));
   -webkit-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
-.pd-swipe .project-card h3 { font-size: 1rem; }
-.pd-swipe .project-desc { font-size: 0.8125rem; -webkit-line-clamp: 5; line-clamp: 5; }
 
 /* Hidden until the roll-in starts; JS removes .pd-pending in the same frame it animates */
 .pd-pending .projects-reveal,
