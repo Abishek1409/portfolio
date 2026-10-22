@@ -625,8 +625,20 @@
         pointer.inside = e.clientX >= rect.left && e.clientX <= rect.right &&
           e.clientY >= rect.top && e.clientY <= rect.bottom;
       }
+      // Touch has no hover, and a cancel means the browser took over (scrolling):
+      // release the letter so it never stays stuck as an outline
+      if (e.pointerType !== 'mouse' || e.type === 'pointercancel') pointer.inside = false;
       wake();
     };
+
+    // Scrolling moves the text out from under a still mouse without firing pointerleave,
+    // which left letters stuck as outlines. Drop the hover state on scroll instead.
+    const onScroll = () => {
+      if (!pointer.inside || dragging >= 0) return;
+      pointer.inside = false;
+      wake();
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
 
     container.addEventListener('pointermove', onMove, { passive: true });
     container.addEventListener('pointerenter', onMove, { passive: true });
@@ -663,6 +675,7 @@
         container.removeEventListener('pointerup', onUp);
         container.removeEventListener('pointercancel', onUp);
         container.removeEventListener('pointerleave', onLeave);
+        window.removeEventListener('scroll', onScroll);
         container.classList.remove('tech-text');
         canvas.remove();
       }

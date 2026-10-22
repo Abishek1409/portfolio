@@ -479,11 +479,21 @@ function initProjectsDrum() {
   let rafId = 0;
   let last = 0;
 
+  // Phones and tablets: no scroll pinning; the drum turns with horizontal swipes
+  const mobileMQ = window.matchMedia('(max-width: 1023.98px), (pointer: coarse)');
+  let swipeMode = mobileMQ.matches;
+
   function layout() {
     navH = header ? header.offsetHeight : 0;
+    section.classList.toggle('pd-swipe', swipeMode);
     stageH = stage.clientHeight;
     cardW = cards[0].offsetWidth;
     stage.style.perspective = `${Math.round(cardW * PD_RADIUS * 3)}px`;
+    if (swipeMode) {
+      distance = 0;
+      track.style.height = '';
+      return;
+    }
     distance = (count - 1) * stageH * PD_SCROLL_PER_CARD;
     track.style.height = `${Math.round(stageH + distance)}px`;
     target = drumAngle(navH - track.getBoundingClientRect().top, distance, count);
@@ -512,6 +522,7 @@ function initProjectsDrum() {
     current += (target - current) * (1 - Math.exp(-PD_STIFFNESS * dt));
     if (Math.abs(target - current) < 0.0005) current = target;
     render();
+    syncDots();
     if (current !== target || revealing) {
       rafId = requestAnimationFrame(tick);
     } else {
@@ -547,6 +558,7 @@ function initProjectsDrum() {
   }
 
   const onScroll = () => {
+    if (swipeMode) return; // page scroll never turns the drum on mobile
     target = drumAngle(navH - track.getBoundingClientRect().top, distance, count);
     wake();
     clearTimeout(snapId);
@@ -601,6 +613,14 @@ function initProjectsDrum() {
 
   /** Scroll so card `i` is in front; `smooth` lets the drum spring there visibly. */
   function goTo(i, smooth) {
+    if (swipeMode) {
+      // No page scrolling on mobile: just turn the drum
+      target = clamp(i, 0, count - 1);
+      if (!smooth) { current = target; render(); }
+      syncDots();
+      wake();
+      return;
+    }
     const top = cardScrollTop(i);
     if (smooth) snapping = true;
     try {
@@ -627,9 +647,95 @@ function initProjectsDrum() {
     if (card && !card.classList.contains('is-front')) goTo(cards.indexOf(card), false);
   });
 
+  // ----- Mobile: horizontal swipe instead of the scroll-pinned drum -----
+  let drag = null;
+  let suppressClick = false;
+
+  stage.addEventListener('pointerdown', (e) => {
+    if (!swipeMode || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    drag = { x: e.clientX, y: e.clientY, start: target, active: false, lastX: e.clientX, lastT: e.timeStamp, v: 0 };
+  });
+
+  stage.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x;
+    const dy = e.clientY - drag.y;
+    if (!drag.active) {
+      // Decide the gesture: sideways drives the drum, vertical leaves the page scrolling
+      if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) {
+        drag.active = true;
+        if (stage.setPointerCapture) stage.setPointerCapture(e.pointerId);
+      } else if (Math.abs(dy) > 8) {
+        drag = null;
+        return;
+      } else {
+        return;
+      }
+    }
+    const step = cardW * (1 + PD_GAP);
+    // Follow the finger 1:1, with a little rubber-band past the first and last card
+    target = clamp(drag.start - dx / step, -0.35, count - 1 + 0.35);
+    current = target;
+    const dt = Math.max(1, e.timeStamp - drag.lastT) / 1000;
+    drag.v = 0.8 * drag.v + 0.2 * (-(e.clientX - drag.lastX) / step / dt); // cards per second
+    drag.lastX = e.clientX;
+    drag.lastT = e.timeStamp;
+    render();
+  });
+
+  const endDrag = () => {
+    if (!drag) return;
+    if (drag.active) {
+      // Flick: project the release velocity, then settle on the nearest card
+      target = clamp(Math.round(current + clamp(drag.v * 0.25, -1, 1)), 0, count - 1);
+      suppressClick = true;
+      setTimeout(() => { suppressClick = false; }, 50);
+      wake();
+    }
+    drag = null;
+  };
+  stage.addEventListener('pointerup', endDrag);
+  stage.addEventListener('pointercancel', endDrag);
+  stage.addEventListener('click', (e) => {
+    if (!suppressClick) return;
+    e.preventDefault();
+    e.stopPropagation();
+  }, true);
+
+  // Pager dots: show where you are and jump to any project
+  const dots = document.createElement('div');
+  dots.className = 'pd-dots';
+  const dotButtons = cards.map((card, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'pd-dot';
+    const title = card.querySelector('h3');
+    b.setAttribute('aria-label', `Show project ${i + 1}${title ? `: ${title.textContent.trim()}` : ''}`);
+    b.addEventListener('click', () => goTo(i, true));
+    dots.appendChild(b);
+    return b;
+  });
+  track.appendChild(dots);
+  const syncDots = () => {
+    const active = clamp(Math.round(target), 0, count - 1);
+    dotButtons.forEach((b, i) => b.setAttribute('aria-current', i === active ? 'true' : 'false'));
+  };
+
+  const onModeChange = () => {
+    swipeMode = mobileMQ.matches;
+    layout();
+    if (swipeMode) target = clamp(Math.round(current), 0, count - 1);
+    current = target;
+    render();
+    syncDots();
+  };
+  if (mobileMQ.addEventListener) mobileMQ.addEventListener('change', onModeChange);
+  else if (mobileMQ.addListener) mobileMQ.addListener(onModeChange);
+
   layout();
   current = target;
   render();
+  syncDots();
   window.addEventListener('scroll', onScroll, { passive: true });
   window.addEventListener('resize', onResize);
   window.addEventListener('load', onResize);
@@ -652,8 +758,9 @@ function initProjectsDrum() {
 const TECH_TEXT_TARGETS = [
   // [selector, extra options]
   ['.hero-name', { sweep: true, reach: 160 }],
-  ['.section-title', { sweep: false }],
-  ['.about-heading, .skill-group h3', { sweep: false, labels: false, specks: 8 }]
+  ['.section-title', { sweep: false }]
+  // Small sub-headings (About, Skills) stay plain text: at that size, over the artwork,
+  // the dashed outline reads as broken letters
 ];
 
 function initTechText() {
