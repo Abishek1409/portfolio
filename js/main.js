@@ -411,6 +411,7 @@ function drumReveal(el, options) {
 // Horizontal drum carousel (cards wrap around a vertical axis, like a rolling drum seen side-on)
 const PD_RADIUS = 2;             // drum radius as a multiple of card width (two neighbours visible per side)
 const PD_GAP = 0.22;             // spacing between cards as a fraction of card width
+const PD_TILT_MAX = 8;           // deg, hover tilt of the front flip card
 // Mobile drum: tighter and seen from closer, so the curve reads clearly on a narrow screen
 // Full-size cards: neighbours sit ~60deg round the drum and peek in as curved edges at both sides
 const PD_RADIUS_M = 1;
@@ -473,85 +474,125 @@ function initProjectsDrum() {
   stage.append(drum);
   track.appendChild(stage);
   section.classList.add('pd-on', 'pd-pending');
+  document.documentElement.classList.add('pd-flipcards'); // CSS: paintings get the light scrim
 
-  // Painting cards: each face shows only its artwork and title. The description, tech stack and
-  // links move out of the card into one details panel below the drum, shown on click.
-  const details = cards.map((card) => {
-    const body = document.createElement('div');
-    body.className = 'pd-detail-body';
-    // Direct children only, so buttons inside .project-links move together with their wrapper
-    Array.from(card.children)
-      .filter((el) => el.matches('.project-badge, .project-desc, .project-tech, .project-links, .project-link'))
-      .forEach((el) => body.appendChild(el));
+  // Flip cards (vanilla take on React Bits FlipCard). Each drum card becomes:
+  //   card (drum transform) > .pd-tilt (hover tilt + lift) > .pd-flip (flip rotor) > two faces
+  // Front: the painting with only the title. Back: badge, description, tech stack and links.
+  // Click/tap the front card to flip it; click again (or "Back", or Escape) to flip back.
+  const flips = cards.map((card) => {
     const h3 = card.querySelector('h3');
+    const title = h3 ? h3.textContent.trim() : 'project';
+
+    const tilt = document.createElement('div');
+    tilt.className = 'pd-tilt';
+    const rotor = document.createElement('div');
+    rotor.className = 'pd-flip';
+    const front = document.createElement('div');
+    front.className = 'pd-face pd-face--front';
+    const back = document.createElement('div');
+    back.className = 'pd-face pd-face--back';
+    back.inert = true;
+
+    // Back face content: direct children only, so buttons stay inside their .project-links wrapper
+    const backTitle = document.createElement('p');
+    backTitle.className = 'pd-back-title';
+    backTitle.setAttribute('aria-hidden', 'true'); // the real <h3> stays on the front
+    backTitle.textContent = title;
+    const details = Array.from(card.children)
+      .filter((el) => el.matches('.project-badge, .project-desc, .project-tech, .project-links, .project-link'));
+    const backBtn = document.createElement('button');
+    backBtn.type = 'button';
+    backBtn.className = 'pd-back-btn';
+    backBtn.textContent = '\u21ba Back';
+    backBtn.setAttribute('aria-label', `Hide details for ${title}`);
+    back.append(backBtn, backTitle, ...details);
+
+    // Front face: painting (via the card's --card-bg), the title and a prompt
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'pd-flip-toggle';
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.setAttribute('aria-label', `Show details for ${title}`);
     const hint = document.createElement('span');
     hint.className = 'pd-hint';
     hint.setAttribute('aria-hidden', 'true');
-    hint.textContent = 'Tap for details';
-    card.appendChild(hint);
-    card.setAttribute('role', 'button');
-    card.setAttribute('tabindex', '0');
-    card.setAttribute('aria-expanded', 'false');
-    return { body, title: h3 ? h3.textContent.trim() : '' };
+    hint.textContent = window.matchMedia('(hover: hover)').matches ? 'Click for details' : 'Tap for details';
+    // Everything left on the card (number, title) moves onto the front face
+    front.append(...Array.from(card.children), hint, toggle);
+
+    const glareF = document.createElement('span');
+    glareF.className = 'pd-glare';
+    glareF.setAttribute('aria-hidden', 'true');
+    const glareB = glareF.cloneNode();
+    front.appendChild(glareF);
+    back.appendChild(glareB);
+
+    rotor.append(front, back);
+    tilt.appendChild(rotor);
+    card.appendChild(tilt);
+    return { card, tilt, front, back, toggle, backBtn };
   });
 
-  const panel = document.createElement('div');
-  panel.className = 'pd-panel';
-  panel.id = 'pd-panel';
-  panel.hidden = true;
-  panel.setAttribute('role', 'region');
-  panel.setAttribute('aria-live', 'polite');
-  const panelHead = document.createElement('div');
-  panelHead.className = 'pd-panel-head';
-  const panelTitle = document.createElement('h3');
-  panelTitle.className = 'pd-panel-title';
-  const closeBtn = document.createElement('button');
-  closeBtn.type = 'button';
-  closeBtn.className = 'pd-panel-close';
-  closeBtn.setAttribute('aria-label', 'Close project details');
-  closeBtn.textContent = '\u00d7';
-  panelHead.append(panelTitle, closeBtn);
-  const panelBody = document.createElement('div');
-  panelBody.className = 'pd-panel-content';
-  panel.append(panelHead, panelBody);
-  // Inside the (sticky) stage, so it is on screen while the drum is pinned; CSS moves the drum
-  // up while it is open so the panel sits below the paintings rather than over them
-  stage.appendChild(panel);
-  cards.forEach((card) => card.setAttribute('aria-controls', 'pd-panel'));
+  let flippedIndex = -1;
+  function setFlipped(i, on, focus) {
+    const f = flips[i];
+    if (!f) return;
+    f.card.classList.toggle('is-flipped', on);
+    f.toggle.setAttribute('aria-expanded', String(on));
+    // Only the visible face is reachable by keyboard and assistive tech
+    f.front.inert = on;
+    f.back.inert = !on;
+    f.back.scrollTop = 0;
+    if (on) {
+      if (flippedIndex >= 0 && flippedIndex !== i) setFlipped(flippedIndex, false);
+      flippedIndex = i;
+      if (focus) f.backBtn.focus({ preventScroll: true });
+    } else {
+      if (flippedIndex === i) flippedIndex = -1;
+      if (focus) f.toggle.focus({ preventScroll: true });
+    }
+  }
+  const toggleFlip = (i, focus) => setFlipped(i, flippedIndex !== i, focus);
 
-  let openIndex = -1;
-  function openDetails(i) {
-    if (i < 0 || i >= count) return;
-    if (openIndex === i) { closeDetails(); return; }
-    openIndex = i;
-    panelTitle.textContent = details[i].title;
-    panelBody.replaceChildren(details[i].body);
-    panel.hidden = false;
-    panel.classList.remove('is-open');
-    void panel.offsetWidth; // restart the entrance transition
-    panel.classList.add('is-open');
-    stage.classList.add('has-details');
-    cards.forEach((c, k) => c.setAttribute('aria-expanded', String(k === i)));
-  }
-  function closeDetails() {
-    if (openIndex < 0) return;
-    const was = cards[openIndex];
-    openIndex = -1;
-    panel.classList.remove('is-open');
-    panel.hidden = true;
-    stage.classList.remove('has-details');
-    cards.forEach((c) => c.setAttribute('aria-expanded', 'false'));
-    return was;
-  }
-  closeBtn.addEventListener('click', () => {
-    const was = closeDetails();
-    if (was) was.focus({ preventScroll: true });
+  flips.forEach((f, i) => {
+    f.backBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setFlipped(i, false, true);
+    });
+    f.card.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && flippedIndex === i) setFlipped(i, false, true);
+    });
   });
-  panel.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape') return;
-    const was = closeDetails();
-    if (was) was.focus({ preventScroll: true });
+
+  // Hover tilt, lift and glare on the front card (mouse only)
+  let tilted = null;
+  const resetTilt = () => {
+    if (!tilted) return;
+    tilted.style.removeProperty('--tx');
+    tilted.style.removeProperty('--ty');
+    tilted.style.removeProperty('--lift');
+    tilted.style.removeProperty('--sheen');
+    tilted = null;
+  };
+  stage.addEventListener('pointermove', (e) => {
+    if (e.pointerType !== 'mouse') return;
+    const card = e.target.closest('.project-card.is-front');
+    const f = card && flips.find((x) => x.card === card);
+    if (!f) { resetTilt(); return; }
+    if (tilted && tilted !== f.tilt) resetTilt();
+    tilted = f.tilt;
+    const r = card.getBoundingClientRect();
+    const px = clamp((e.clientX - r.left) / r.width, 0, 1);
+    const py = clamp((e.clientY - r.top) / r.height, 0, 1);
+    f.tilt.style.setProperty('--tx', `${((0.5 - py) * 2 * PD_TILT_MAX).toFixed(2)}deg`);
+    f.tilt.style.setProperty('--ty', `${((px - 0.5) * 2 * PD_TILT_MAX).toFixed(2)}deg`);
+    f.tilt.style.setProperty('--gx', `${(px * 100).toFixed(1)}%`);
+    f.tilt.style.setProperty('--gy', `${(py * 100).toFixed(1)}%`);
+    f.tilt.style.setProperty('--lift', '1.03');
+    f.tilt.style.setProperty('--sheen', '1');
   });
+  stage.addEventListener('pointerleave', resetTilt);
 
   let navH = 0;
   let stageH = 0;
@@ -599,8 +640,8 @@ function initProjectsDrum() {
       // Front card is interactive; visible neighbours can be clicked to bring them to the front
       const front = Math.abs(i - pos) < 0.5;
       card.classList.toggle('is-front', front);
-      // Details belong to the front card: close them when another card rolls to the front
-      if (!front && openIndex === i) closeDetails();
+      // Only the front card can be flipped: turn it back when another card rolls to the front
+      if (!front && flippedIndex === i) setFlipped(i, false);
       card.style.pointerEvents = Math.abs(i - pos) < 1.6 ? '' : 'none';
     });
   }
@@ -721,28 +762,24 @@ function initProjectsDrum() {
     wake();
   }
 
-  // Click a side card: roll it to the front. Click the front card: open/close its details.
+  // Click a side card: roll it to the front. Click the front card: flip it.
+  // Clicks on links/buttons on the back face do their own thing.
   stage.addEventListener('click', (e) => {
     const card = e.target.closest('.project-card');
     if (!card) return;
     const i = cards.indexOf(card);
-    if (card.classList.contains('is-front')) {
-      openDetails(i);
-    } else {
+    if (!card.classList.contains('is-front')) {
       e.preventDefault();
       goTo(i, true);
+      return;
     }
+    if (e.target.closest('a, .pd-back-btn')) return;
+    // On the back, only a click on empty space flips back (text stays selectable)
+    if (flippedIndex === i && e.target.closest('.project-desc, .project-tech')) return;
+    toggleFlip(i, e.detail === 0); // keyboard-activated toggle button: move focus to the new face
   });
 
-  // Keyboard: Enter/Space on a card does the same as a click; focusing a side card turns to it
-  stage.addEventListener('keydown', (e) => {
-    const card = e.target.closest('.project-card');
-    if (!card || (e.key !== 'Enter' && e.key !== ' ')) return;
-    e.preventDefault();
-    const i = cards.indexOf(card);
-    if (!card.classList.contains('is-front')) goTo(i, false);
-    openDetails(i);
-  });
+  // Keyboard: focusing a side card's toggle turns the drum to it
   stage.addEventListener('focusin', (e) => {
     const card = e.target.closest('.project-card');
     if (card && !card.classList.contains('is-front')) goTo(cards.indexOf(card), false);
@@ -754,7 +791,8 @@ function initProjectsDrum() {
 
   stage.addEventListener('pointerdown', (e) => {
     if (!swipeMode || (e.pointerType === 'mouse' && e.button !== 0)) return;
-    if (e.target.closest('.pd-panel')) return; // swiping inside the details box never turns the drum
+    // Scrolling a long back face vertically must not turn the drum
+    if (e.target.closest('.pd-face--back .project-desc')) return;
     drag = { x: e.clientX, y: e.clientY, start: target, active: false, lastX: e.clientX, lastT: e.timeStamp, v: 0 };
   });
 

@@ -700,129 +700,198 @@ section { scroll-margin-top: var(--nav-h); }
   -webkit-tap-highlight-color: transparent;
 }
 
-/* ===== Painting cards + details panel ===== */
-/* In drum mode a card is just the painting with its title on top. JS moves the description,
-   tech stack and links into .pd-panel, a separate box below the drum, shown on click. */
+/* ===== Flip cards on the drum (vanilla take on React Bits FlipCard) ===== */
+/* JS wraps each drum card: card > .pd-tilt (hover tilt + lift) > .pd-flip (rotor) > faces.
+   The card keeps the drum transform; the painting moves from the card onto the front face, and
+   the back face holds the description, tech stack and links. Clicking the front card flips it. */
 .pd-on .project-card {
-  justify-content: flex-start;
-  outline: none;
+  /* The card is now just a 3D frame; the faces paint themselves */
+  padding: 0;
+  overflow: visible;
+  background: none !important;
+  box-shadow: none !important;
+  transform-style: preserve-3d;
+  backface-visibility: visible;
+  -webkit-backface-visibility: visible;
+  text-shadow: none;
 }
-.pd-on .project-card:focus-visible {
-  box-shadow: 0 0 0 3px var(--accent), 0 1.5rem 3rem rgba(0, 0, 0, 0.45);
+.pd-on .project-card > :not(.pd-tilt) { display: none; } /* nothing stray outside the faces */
+/* Card-level sheen and shade pseudo-elements are replaced by per-face layers */
+.pd-on .project-card::before,
+.pd-on .project-card::after { content: none; }
+
+.pd-tilt {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transform: scale(var(--lift, 1)) rotateX(var(--tx, 0deg)) rotateY(var(--ty, 0deg));
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Light scrim only behind the title, so the painting stays fully visible */
-.project-card.project-card--toss,
-.project-card.project-card--taskflow,
-.project-card.project-card--angel,
-.project-card.project-card--collabcode,
-.project-card.project-card--bfs {
-  --card-overlay: linear-gradient(180deg, rgba(6, 6, 10, 0.75) 0%, rgba(6, 6, 10, 0.25) 28%, rgba(6, 6, 10, 0) 45%);
+.pd-flip {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  /* Springy turn with a little overshoot, like the FlipCard spring (stiffness 170, damping 20) */
+  transition: transform 0.75s cubic-bezier(0.34, 1.4, 0.5, 1);
+}
+.project-card.is-flipped .pd-flip { transform: rotateY(180deg); }
+
+.pd-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 1.25rem;
+  color: #fff;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  box-shadow: 0 1.5rem 3rem rgba(0, 0, 0, 0.45);
 }
 
-.pd-on .project-card h3 {
+/* Front: the painting, bright and fully visible, with a scrim only behind the title */
+.pd-face--front {
+  padding: 1.25rem 1.25rem 1rem;
+  background: var(--card-bg);
+  filter: brightness(1.12) saturate(1.1) contrast(1.04);
+}
+.pd-face--front h3 {
+  margin: 0;
   font-size: clamp(1.15rem, 1.8vw, 1.5rem);
   line-height: 1.25;
-  margin: 0;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9), 0 0 14px rgba(0, 0, 0, 0.6);
+}
+.pd-face--front .project-num { display: none; }
+
+/* The live project keeps its gold ring and glow on both faces */
+.project-card--live .pd-face {
+  box-shadow: inset 0 0 0 2px var(--accent), 0 0 2.5rem rgba(201, 164, 106, 0.35), 0 1.5rem 3rem rgba(0, 0, 0, 0.45);
 }
 
-/* Small prompt at the bottom of the front card */
-.pd-hint { display: none; }
-.pd-on .project-card.is-front .pd-hint {
-  display: inline-block;
+/* Back: details on a solid surface, never on top of the painting */
+.pd-face--back {
+  transform: rotateY(180deg);
+  padding: 1rem 1.25rem 1.25rem;
+  gap: 0.6rem;
+  background:
+    linear-gradient(180deg, rgba(201, 164, 106, 0.08), rgba(201, 164, 106, 0) 40%),
+    var(--bg-alt);
+  border-top: 3px solid var(--accent);
+}
+.pd-back-title {
+  margin: 0;
+  font-family: var(--font-head);
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--text);
+}
+.pd-back-btn {
+  align-self: flex-end;
+  min-height: 2.25rem;
+  margin: -0.25rem -0.5rem -0.25rem 0;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pd-back-btn:hover { color: var(--accent); border-color: var(--accent); }
+.pd-face--back .project-badge { margin: 0; }
+.pd-face--back .project-desc {
+  display: block;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  overflow: auto;           /* long descriptions scroll inside the card */
+  -webkit-line-clamp: unset;
+  line-clamp: none;
+  max-width: none;
+  color: var(--text);
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.55;
+  text-shadow: none;
+  overscroll-behavior: contain;
+}
+.pd-face--back .project-tech { margin: 0; gap: 0.35rem; }
+.pd-face--back .project-tech li {
+  padding: 0.2rem 0.6rem;
+  font-size: 0.75rem;
+  background: rgba(201, 164, 106, 0.08);
+  border-color: rgba(201, 164, 106, 0.45);
+  color: var(--text);
+}
+.pd-face--back .project-links,
+.pd-face--back > .project-link { margin-top: 0; }
+
+/* Glare: soft sheen following the cursor (hover only) */
+.pd-glare {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(circle farthest-side at var(--gx, 50%) var(--gy, 50%),
+    rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.11) 26%, rgba(255, 255, 255, 0.03) 60%, rgba(255, 255, 255, 0) 100%);
+  opacity: var(--sheen, 0);
+  transition: opacity 0.3s ease;
+}
+
+/* Drum depth: JS writes --shade on the card; each face darkens with it */
+.pd-face::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  border-radius: inherit;
+  background: #000;
+  opacity: var(--shade, 0);
+  pointer-events: none;
+}
+
+/* Invisible full-card button: makes the flip keyboard/screen-reader accessible */
+.pd-flip-toggle {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: none;
+  cursor: pointer;
+}
+.pd-flip-toggle:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; }
+.pd-face--back .pd-back-btn,
+.pd-face--back a { position: relative; z-index: 2; }
+
+/* Prompt at the bottom of the front card */
+.pd-hint {
+  display: none;
   align-self: center;
   margin-top: auto;
   padding: 0.35rem 0.9rem;
   border-radius: 999px;
-  background: rgba(6, 6, 10, 0.65);
+  background: rgba(6, 6, 10, 0.6);
   border: 1px solid rgba(255, 255, 255, 0.35);
   color: #fff;
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.04em;
-  text-shadow: none;
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
 }
-.pd-on .project-card.is-front[aria-expanded="true"] .pd-hint { visibility: hidden; }
-@media (hover: hover) {
-  .pd-on .project-card.is-front .pd-hint::before { content: 'Click for details'; }
-  .pd-on .project-card.is-front .pd-hint { font-size: 0; }
-  .pd-on .project-card.is-front .pd-hint::before { font-size: 0.75rem; }
-}
+.pd-on .project-card.is-front .pd-hint { display: inline-block; }
 
-/* While details are open, the drum moves up so the panel never covers a painting */
-.pd-drum { transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1); }
-.pd-stage.has-details .pd-drum { transform: translateY(var(--pd-shift, -24%)); }
-
-.pd-panel {
-  position: absolute;
-  left: 50%;
-  bottom: 1rem;
-  z-index: 5;
-  width: min(92%, 40rem);
-  max-height: 46%;
-  overflow: auto;
-  padding: 1rem 1.25rem 1.25rem;
-  background: var(--bg-alt);
-  border: 1px solid var(--border);
-  border-top: 3px solid var(--accent);
-  border-radius: 1rem;
-  box-shadow: 0 1rem 2.5rem rgba(0, 0, 0, 0.55);
-  opacity: 0;
-  transform: translate(-50%, 1rem);
-  transition: opacity 0.3s ease, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-}
-.pd-panel[hidden] { display: none; }
-.pd-panel.is-open { opacity: 1; transform: translate(-50%, 0); }
-
-.pd-panel-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 0.5rem;
-}
-.pd-panel-title {
-  margin: 0;
-  font-size: 1.125rem;
-  color: var(--text);
-}
-.pd-panel-close {
-  flex: none;
-  width: 2.75rem;
-  height: 2.75rem;
-  margin: -0.5rem -0.5rem 0 0;
-  border: 0;
-  border-radius: 50%;
-  background: none;
-  color: var(--muted);
-  font-size: 1.75rem;
-  line-height: 1;
-  cursor: pointer;
-}
-.pd-panel-close:hover { color: var(--accent); background: rgba(242, 239, 233, 0.06); }
-
-.pd-panel .project-badge { margin-bottom: 0.6rem; }
-.pd-panel .project-desc {
-  display: block;
-  -webkit-line-clamp: unset;
-  line-clamp: none;
-  overflow: visible;
-  max-width: none;
-  color: var(--text);
-  font-size: 0.9375rem;
-  line-height: 1.6;
-  margin-bottom: 0.75rem;
-}
-/* The painting face shows the title only */
-.pd-on .pd-drum .project-num { display: none; }
-.pd-panel .project-tech { margin: 0 0 1rem; gap: 0.4rem; }
-.pd-panel .project-tech li { font-size: 0.8125rem; padding: 0.25rem 0.7rem; }
-.pd-panel .project-links { margin-top: 0; }
-.pd-panel .project-link { margin-top: 0; }
-
-@media (max-width: 767.98px) {
-  .pd-panel { width: calc(100% - 1.5rem); max-height: 50%; padding: 0.9rem 1rem 1rem; }
-  .pd-stage.has-details .pd-drum { transform: translateY(var(--pd-shift, -26%)) scale(0.8); }
+@media (prefers-reduced-motion: reduce) {
+  .pd-flip { transition: none; }
 }
 
 /* Hidden until the roll-in starts; JS removes .pd-pending in the same frame it animates */
@@ -1191,8 +1260,9 @@ html.is-intro {
 .project-card.project-card--angel,
 .project-card.project-card--collabcode,
 .project-card.project-card--bfs {
-  /* Stronger, more even scrim so the artwork never competes with the text */
-  --card-overlay: linear-gradient(180deg, rgba(6, 6, 10, 0.78), rgba(6, 6, 10, 0.68) 45%, rgba(6, 6, 10, 0.9));
+  /* Light scrim only behind the title, so the painting stays bright and fully visible.
+     (In the no-JS list view the text sits on the card, so it gets a stronger scrim below.) */
+  --card-overlay: linear-gradient(180deg, rgba(6, 6, 10, 0.7) 0%, rgba(6, 6, 10, 0.18) 22%, rgba(6, 6, 10, 0) 34%);
   background: var(--card-bg);
 }
 
@@ -1298,3 +1368,12 @@ html.is-intro {
   border-color: #fff;
 }
 .pd-on .project-links .btn-primary:hover { background: transparent; color: #fff; }
+
+/* No-JS / reduced-motion list view: the description sits on the painting, so darken it more */
+html:not(.pd-flipcards) .project-card.project-card--toss,
+html:not(.pd-flipcards) .project-card.project-card--taskflow,
+html:not(.pd-flipcards) .project-card.project-card--angel,
+html:not(.pd-flipcards) .project-card.project-card--collabcode,
+html:not(.pd-flipcards) .project-card.project-card--bfs {
+  --card-overlay: linear-gradient(180deg, rgba(6, 6, 10, 0.78), rgba(6, 6, 10, 0.68) 45%, rgba(6, 6, 10, 0.9));
+}
