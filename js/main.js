@@ -411,6 +411,11 @@ function drumReveal(el, options) {
 // Horizontal drum carousel (cards wrap around a vertical axis, like a rolling drum seen side-on)
 const PD_RADIUS = 2;             // drum radius as a multiple of card width (two neighbours visible per side)
 const PD_GAP = 0.22;             // spacing between cards as a fraction of card width
+// Mobile drum: tighter and seen from closer, so the curve reads clearly on a narrow screen
+// Neighbours sit ~67deg round the drum, so they show as curved slivers at both screen edges
+const PD_RADIUS_M = 0.9;
+const PD_GAP_M = 0.05;
+const PD_PERSPECTIVE_M = 2.2;    // perspective distance in card widths (desktop uses radius * 3)
 const PD_SHADE = 0.85;           // max edge darkness
 const PD_FADE = [1.45, 1.75];    // rad: cards fade out between these angles
 const PD_STIFFNESS = 6;          // spring easing toward the scroll target (lower = softer)
@@ -488,7 +493,9 @@ function initProjectsDrum() {
     section.classList.toggle('pd-swipe', swipeMode);
     stageH = stage.clientHeight;
     cardW = cards[0].offsetWidth;
-    stage.style.perspective = `${Math.round(cardW * PD_RADIUS * 3)}px`;
+    stage.style.perspective = swipeMode
+      ? `${Math.round(cardW * PD_PERSPECTIVE_M)}px`
+      : `${Math.round(cardW * PD_RADIUS * 3)}px`;
     if (swipeMode) {
       distance = 0;
       track.style.height = '';
@@ -502,7 +509,9 @@ function initProjectsDrum() {
   function render() {
     const pos = current + reveal;
     cards.forEach((card, i) => {
-      const p = drumPlace(i - pos, PD_RADIUS, PD_GAP, PD_SHADE);
+      const p = swipeMode
+        ? drumPlace(i - pos, PD_RADIUS_M, PD_GAP_M, PD_SHADE)
+        : drumPlace(i - pos, PD_RADIUS, PD_GAP, PD_SHADE);
       card.style.transform =
         `translate(-50%, -50%) translate3d(${(p.x * cardW).toFixed(1)}px, 0, ${(p.z * cardW).toFixed(1)}px) rotateY(${p.ry.toFixed(4)}rad)`;
       card.style.opacity = p.fade.toFixed(3);
@@ -522,7 +531,6 @@ function initProjectsDrum() {
     current += (target - current) * (1 - Math.exp(-PD_STIFFNESS * dt));
     if (Math.abs(target - current) < 0.0005) current = target;
     render();
-    syncDots();
     if (current !== target || revealing) {
       rafId = requestAnimationFrame(tick);
     } else {
@@ -617,7 +625,6 @@ function initProjectsDrum() {
       // No page scrolling on mobile: just turn the drum
       target = clamp(i, 0, count - 1);
       if (!smooth) { current = target; render(); }
-      syncDots();
       wake();
       return;
     }
@@ -672,8 +679,9 @@ function initProjectsDrum() {
         return;
       }
     }
-    const step = cardW * (1 + PD_GAP);
-    // Follow the finger 1:1, with a little rubber-band past the first and last card
+    // One card per swipe of about 70% of the card width: the drum turns under the finger
+    const step = cardW * 0.7;
+    // Follow the finger, with a little rubber-band past the first and last card
     target = clamp(drag.start - dx / step, -0.35, count - 1 + 0.35);
     current = target;
     const dt = Math.max(1, e.timeStamp - drag.lastT) / 1000;
@@ -702,32 +710,12 @@ function initProjectsDrum() {
     e.stopPropagation();
   }, true);
 
-  // Pager dots: show where you are and jump to any project
-  const dots = document.createElement('div');
-  dots.className = 'pd-dots';
-  const dotButtons = cards.map((card, i) => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'pd-dot';
-    const title = card.querySelector('h3');
-    b.setAttribute('aria-label', `Show project ${i + 1}${title ? `: ${title.textContent.trim()}` : ''}`);
-    b.addEventListener('click', () => goTo(i, true));
-    dots.appendChild(b);
-    return b;
-  });
-  track.appendChild(dots);
-  const syncDots = () => {
-    const active = clamp(Math.round(target), 0, count - 1);
-    dotButtons.forEach((b, i) => b.setAttribute('aria-current', i === active ? 'true' : 'false'));
-  };
-
   const onModeChange = () => {
     swipeMode = mobileMQ.matches;
     layout();
     if (swipeMode) target = clamp(Math.round(current), 0, count - 1);
     current = target;
     render();
-    syncDots();
   };
   if (mobileMQ.addEventListener) mobileMQ.addEventListener('change', onModeChange);
   else if (mobileMQ.addListener) mobileMQ.addListener(onModeChange);
@@ -735,7 +723,6 @@ function initProjectsDrum() {
   layout();
   current = target;
   render();
-  syncDots();
   window.addEventListener('scroll', onScroll, { passive: true });
   window.addEventListener('resize', onResize);
   window.addEventListener('load', onResize);
@@ -765,6 +752,9 @@ const TECH_TEXT_TARGETS = [
 
 function initTechText() {
   if (typeof window.createTechText !== 'function') return [];
+  // Touch screens have no hover, so the effect only ever showed up as broken letters there.
+  // Keep the real headings on those devices.
+  if (window.matchMedia && window.matchMedia('(hover: none), (pointer: coarse)').matches) return [];
   const instances = [];
   TECH_TEXT_TARGETS.forEach(([selector, extra]) => {
     document.querySelectorAll(selector).forEach((el) => {

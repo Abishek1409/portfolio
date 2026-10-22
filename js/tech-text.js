@@ -151,7 +151,9 @@
     };
 
     const sprite = (s, view, glyph, stroke) => {
-      const pad = Math.ceil(s.strokeWidth * 2 + 4);
+      // Generous padding: serif swashes, the dotted i/j and italic overhangs extend past the
+      // measured ink box in some fonts, and a tight crop clipped them (chopped letters)
+      const pad = Math.ceil(s.strokeWidth * 2 + 4 + view.size * 0.25);
       const left = glyph.box.x1 - pad;
       const top = glyph.box.y1 - pad;
       const w = glyph.box.x2 - glyph.box.x1 + pad * 2;
@@ -567,7 +569,32 @@
       const settling = moving ||
         Math.abs(presence - (s.reveal === 'area' && active && dragging < 0 ? 1 : 0)) > 0.002 ||
         (frame.alpha > 0.01 && frame.alpha < 0.99);
-      if ((active || settling) && visible && alive) raf = requestAnimationFrame(tick);
+      if ((active || settling) && visible && alive) {
+        raf = requestAnimationFrame(tick);
+      } else if (!active) {
+        // The loop is stopping (idle, or scrolled off screen mid-transition). Never freeze on a
+        // half-outlined frame: snap every letter home and repaint it solid.
+        drawIdle();
+      }
+    }
+
+    /** Clean resting state: all letters solid and at home, no frame, no reveal. */
+    function drawIdle() {
+      glyphs.forEach((glyph) => {
+        glyph.outline = 0;
+        glyph.offset.x = 0;
+        glyph.offset.y = 0;
+        glyph.velocity.x = 0;
+        glyph.velocity.y = 0;
+      });
+      presence = 0;
+      frame.alpha = 0;
+      frame.index = -1;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (const glyph of glyphs) blit(ctx, glyph.fill, 0, 0, 0, 0);
     }
 
     function wake() {
@@ -594,6 +621,8 @@
     };
 
     const onMove = (e) => {
+      // Only a real mouse hovers; touch/pen "moves" are scrolls and left letters half-outlined
+      if (e.pointerType && e.pointerType !== 'mouse' && dragging < 0) return;
       locate(e);
       pointer.inside = true;
       wake();
@@ -651,7 +680,18 @@
     if (resizeObserver) resizeObserver.observe(container);
     else window.addEventListener('resize', resize);
     const intersectionObserver = typeof IntersectionObserver === 'function'
-      ? new IntersectionObserver(([entry]) => { visible = entry.isIntersecting; wake(); })
+      ? new IntersectionObserver(([entry]) => {
+        visible = entry.isIntersecting;
+        if (!visible) {
+          // Leaving the screen: drop hover/drag and paint the resting state now
+          pointer.inside = false;
+          dragging = -1;
+          cancelAnimationFrame(raf);
+          raf = 0;
+          if (word) drawIdle();
+        }
+        wake();
+      })
       : null;
     if (intersectionObserver) intersectionObserver.observe(container);
     if (document.fonts) document.fonts.ready.then(refreshFonts, refreshFonts);
