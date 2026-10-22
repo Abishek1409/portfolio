@@ -159,8 +159,38 @@
       <div class="section-inner">
         <h2 id="projects-title" class="section-title projects-reveal">Projects</h2>
         <div class="stack">
-          <article class="project-card project-card--toss" style="--i: 0" aria-labelledby="project-1-title">
+          <article class="project-card project-card--bfs project-card--live" style="--i: 0" aria-labelledby="project-bfs-title">
             <p class="project-num" aria-hidden="true">01</p>
+            <p class="project-badge"><span class="project-badge-dot" aria-hidden="true"></span>Production · In use by a client</p>
+            <h3 id="project-bfs-title">BFS – Production-Ready Billing System</h3>
+            <p class="project-desc">
+              An offline-capable billing web app for small venues, with a Node.js and Express local print server
+              that relays raw ESC/POS commands to thermal printers and bypasses CORS for reliable on-premises
+              printing. Receipts and bill history persist locally in IndexedDB with JSON export, reducing failed
+              prints, data loss and manual reconciliation.
+            </p>
+            <ul class="chips project-tech" aria-label="Technologies used">
+              <li>JavaScript</li>
+              <li>Node.js</li>
+              <li>Express</li>
+              <li>React 19</li>
+              <li>Firebase Realtime Database</li>
+              <li>IndexedDB</li>
+            </ul>
+            <div class="project-links">
+              <!-- TODO: add the BFS repo and live site URLs, then uncomment
+              <a class="btn btn-outline project-link" href="BFS_REPO_URL" target="_blank" rel="noopener noreferrer">
+                Code Base<span class="visually-hidden"> for BFS (opens in a new tab)</span>
+              </a>
+              <a class="btn btn-primary project-link" href="BFS_WEBSITE_URL" target="_blank" rel="noopener noreferrer">
+                Website<span class="visually-hidden"> for BFS (opens in a new tab)</span>
+              </a>
+              -->
+            </div>
+          </article>
+
+          <article class="project-card project-card--toss" style="--i: 1" aria-labelledby="project-1-title">
+            <p class="project-num" aria-hidden="true">02</p>
             <h3 id="project-1-title">TOSS – Transparent Orphanage Support System</h3>
             <p class="project-desc">
               A decentralized platform built with Solidity and IPFS to facilitate direct, transparent
@@ -180,8 +210,8 @@
             </a>
           </article>
 
-          <article class="project-card project-card--taskflow" style="--i: 1" aria-labelledby="project-2-title">
-            <p class="project-num" aria-hidden="true">02</p>
+          <article class="project-card project-card--taskflow" style="--i: 2" aria-labelledby="project-2-title">
+            <p class="project-num" aria-hidden="true">03</p>
             <h3 id="project-2-title">TaskFlow – Task Management Application</h3>
             <p class="project-desc">
               A modern and responsive task management application built with Angular 20, leveraging
@@ -192,13 +222,13 @@
               <li>Angular 20</li>
               <li>CSS3</li>
             </ul>
-            <a class="btn btn-outline project-link" href="https://github.com/Abishek1409/TaskFlow" target="_blank" rel="noopener noreferrer">
+            <a class="btn btn-outline project-link" href="https://github.com/Abishek1409/task-flow" target="_blank" rel="noopener noreferrer">
               Code Base<span class="visually-hidden"> for TaskFlow (opens in a new tab)</span>
             </a>
           </article>
 
-          <article class="project-card project-card--angel" style="--i: 2" aria-labelledby="project-3-title">
-            <p class="project-num" aria-hidden="true">03</p>
+          <article class="project-card project-card--angel" style="--i: 3" aria-labelledby="project-3-title">
+            <p class="project-num" aria-hidden="true">04</p>
             <h3 id="project-3-title">Angel AI – AI Powered Chatbot</h3>
             <p class="project-desc">
               A personalized chatbot that uses the Gemini API to make calls and get responses from Gemini.
@@ -213,8 +243,8 @@
             </a>
           </article>
 
-          <article class="project-card project-card--collabcode" style="--i: 3" aria-labelledby="project-4-title">
-            <p class="project-num" aria-hidden="true">04</p>
+          <article class="project-card project-card--collabcode" style="--i: 4" aria-labelledby="project-4-title">
+            <p class="project-num" aria-hidden="true">05</p>
             <h3 id="project-4-title">Collabcode IDE – Real-Time Coding Platform</h3>
             <p class="project-desc">
               A collaborative coding IDE enabling real-time peer-to-peer coding, debugging, and voice/chat-based
@@ -229,7 +259,7 @@
               <li>Socket.io</li>
               <li>Judge0 API</li>
             </ul>
-            <a class="btn btn-outline project-link" href="https://github.com/Abishek1409/cohere-chatbot" target="_blank" rel="noopener noreferrer">
+            <a class="btn btn-outline project-link" href="https://github.com/AariyaTharshan/Collaborative-IDE" target="_blank" rel="noopener noreferrer">
               Code Base<span class="visually-hidden"> for Collabcode IDE (opens in a new tab)</span>
             </a>
           </article>
