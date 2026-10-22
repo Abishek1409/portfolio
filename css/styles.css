@@ -587,12 +587,15 @@ section { scroll-margin-top: var(--nav-h); }
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: linear-gradient(115deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 38%);
+  /* Kept subtle so it never washes out the text */
+  background: linear-gradient(115deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 30%);
   pointer-events: none;
 }
 
-/* Edge shading: JS writes --shade (0 in front .. 0.85 at the drum's edge) */
+/* Edge shading: JS writes --shade (0 in front .. 0.85 at the drum's edge). It sits above the
+   text (z-index 2) so side cards darken as a whole; on the front card it is fully transparent. */
 .pd-on .project-card::after {
+  z-index: 2;
   content: '';
   position: absolute;
   inset: 0;
@@ -602,24 +605,36 @@ section { scroll-margin-top: var(--nav-h); }
   pointer-events: none;
 }
 
-/* Compact content for the portrait face */
+/* Compact content for the portrait face. Text sits above the sheen and shade layers and
+   carries a soft shadow, so it stays crisp and bright over any background image. */
+.pd-on .project-card > * {
+  position: relative;
+  z-index: 1;
+}
+.pd-on .project-card {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9), 0 0 12px rgba(0, 0, 0, 0.55);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
 .pd-on .project-num {
   font-family: var(--font-body);
   font-size: 0.8125rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.12em;
-  color: rgba(255, 255, 255, 0.75);
+  color: var(--accent);
   margin-bottom: 0.6rem;
 }
 .pd-on .project-card h3 {
-  font-size: clamp(1.05rem, 1.6vw, 1.35rem);
+  font-size: clamp(1.1rem, 1.6vw, 1.4rem);
+  font-weight: 700;
   color: #fff;
   margin-bottom: 0.6rem;
 }
 .pd-on .project-desc {
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 0.875rem;
-  line-height: 1.5;
+  color: #f4f1ea;
+  font-size: 0.9rem;
+  font-weight: 500;
+  line-height: 1.55;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 6;
@@ -630,9 +645,13 @@ section { scroll-margin-top: var(--nav-h); }
 .pd-on .project-tech li {
   padding: 0.2rem 0.6rem;
   font-size: 0.75rem;
-  border-color: rgba(255, 255, 255, 0.45);
-  background: rgba(0, 0, 0, 0.15);
+  font-weight: 600;
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.6);
+  background: rgba(0, 0, 0, 0.45);
+  text-shadow: none;
 }
+.pd-on .project-link { text-shadow: none; }
 .pd-on .project-link {
   padding: 0.55rem 1.1rem;
   font-size: 0.875rem;
@@ -1040,7 +1059,8 @@ html.is-intro {
 .project-card.project-card--angel,
 .project-card.project-card--collabcode,
 .project-card.project-card--bfs {
-  --card-overlay: linear-gradient(180deg, rgba(10, 10, 15, 0.55), rgba(10, 10, 15, 0.35) 40%, rgba(10, 10, 15, 0.8));
+  /* Stronger, more even scrim so the artwork never competes with the text */
+  --card-overlay: linear-gradient(180deg, rgba(6, 6, 10, 0.78), rgba(6, 6, 10, 0.68) 45%, rgba(6, 6, 10, 0.9));
   background: var(--card-bg);
 }
 

@@ -788,7 +788,8 @@ function initTechText() {
 
 if (typeof document !== 'undefined') {
   document.addEventListener('DOMContentLoaded', () => {
-    initTechText();
+    // TechText is disabled: its canvas rendering left letters chopped or half-outlined in the
+    // hero name and section titles. Headings stay real HTML text. Call initTechText() to re-enable.
     // Runs once per load; anchor navigation never re-triggers it. Replay is the footer button.
     initDrumIntro({ replayBtn: document.querySelector('.replay-btn') }).play();
     initNav();
