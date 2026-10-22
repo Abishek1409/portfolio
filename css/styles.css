@@ -706,6 +706,7 @@ section { scroll-margin-top: var(--nav-h); }
    the back face holds the description, tech stack and links. Clicking the front card flips it. */
 .pd-on .project-card {
   /* The card is now just a 3D frame; the faces paint themselves */
+  display: block;
   padding: 0;
   overflow: visible;
   background: none !important;
@@ -720,9 +721,12 @@ section { scroll-margin-top: var(--nav-h); }
 .pd-on .project-card::before,
 .pd-on .project-card::after { content: none; }
 
-.pd-tilt {
+/* Must beat the older `.pd-on .project-card > *` (position: relative) rule, or the wrapper
+   collapses to zero height and the faces render as thin strips */
+.pd-on .project-card > .pd-tilt {
   position: absolute;
   inset: 0;
+  z-index: auto;
   transform-style: preserve-3d;
   transform: scale(var(--lift, 1)) rotateX(var(--tx, 0deg)) rotateY(var(--ty, 0deg));
   transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
@@ -754,8 +758,22 @@ section { scroll-margin-top: var(--nav-h); }
 .pd-face--front {
   padding: 1.25rem 1.25rem 1rem;
   background: var(--card-bg);
-  filter: brightness(1.12) saturate(1.1) contrast(1.04);
 }
+/* Brighten the painting on its own layer: a filter on the face itself would flatten the 3D
+   flip and break backface hiding */
+.pd-face--front::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0.08);
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+}
+.pd-face--front > * { position: relative; z-index: 1; }
+.pd-face--front > .pd-flip-toggle { position: absolute; z-index: 2; }
+.pd-face--front > .pd-glare { position: absolute; z-index: 3; }
 .pd-face--front h3 {
   margin: 0;
   font-size: clamp(1.15rem, 1.8vw, 1.5rem);
@@ -885,8 +903,6 @@ section { scroll-margin-top: var(--nav-h); }
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.04em;
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
 }
 .pd-on .project-card.is-front .pd-hint { display: inline-block; }
 
