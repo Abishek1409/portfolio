@@ -4,7 +4,7 @@
 'use strict';
 
 (function (root) {
-  const LABEL_FONT = '10px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+  const LABEL_FONT = '11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
   const FALLOFF_STEPS = 8;
   const SPRING = 320;
   const DAMPING = 22;

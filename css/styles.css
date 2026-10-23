@@ -20,6 +20,9 @@
 
 /* Hide the page scrollbar (scrolling with wheel, touch and keys still works) */
 html {
+  /* 112.5% = 18px base (was the browser default 16px). Every rem-based size scales with it,
+     so all text is about 12% bigger. Percent keeps the visitor's own browser zoom/text size. */
+  font-size: 112.5%;
   scroll-behavior: smooth;
   scrollbar-width: none;      /* Firefox */
   -ms-overflow-style: none;   /* old Edge */
@@ -43,8 +46,8 @@ h1, h2, h3 {
   line-height: 1.2;
   margin: 0 0 0.75rem;
 }
-h1 { font-size: clamp(2.5rem, 6vw, 4.5rem); }
-h2 { font-size: clamp(1.75rem, 4vw, 2.75rem); }
+h1 { font-size: clamp(2.5rem, 6.75vw, 4.5rem); }
+h2 { font-size: clamp(1.75rem, 4.5vw, 2.75rem); }
 h3 { font-size: 1.25rem; }
 
 p { margin: 0 0 1rem; }
@@ -509,7 +512,7 @@ section { scroll-margin-top: var(--nav-h); }
   margin-bottom: 1rem;
 }
 
-.project-card h3 { font-size: clamp(1.375rem, 3vw, 1.875rem); }
+.project-card h3 { font-size: clamp(1.375rem, 3.4vw, 1.875rem); }
 
 .project-desc {
   max-width: 48rem;
@@ -778,7 +781,7 @@ section { scroll-margin-top: var(--nav-h); }
 .pd-face--front > .pd-glare { position: absolute; z-index: 3; }
 .pd-face--front h3 {
   margin: 0;
-  font-size: clamp(1.15rem, 1.8vw, 1.5rem);
+  font-size: clamp(1.15rem, 2vw, 1.5rem);
   line-height: 1.25;
   color: #fff;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9), 0 0 14px rgba(0, 0, 0, 0.6);
