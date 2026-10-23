@@ -7,8 +7,10 @@
   --accent: #c9a46a;    /* ~8:1 on --bg */
   --border: rgba(242, 239, 233, 0.12);
   --nav-h: 4rem;
-  --font-head: 'Playfair Display', Georgia, serif;
-  --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* Athelas is used wherever it is installed (macOS / iOS ship it). Elsewhere, Crimson Pro is a
+     close free match loaded from Google Fonts, then Georgia. */
+  --font-head: 'Athelas', 'Crimson Pro', Georgia, serif;
+  --font-body: 'Athelas', 'Crimson Pro', Georgia, serif;
   --max-w: 72rem;
 }
 
