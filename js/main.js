@@ -99,8 +99,26 @@ function initParallax(el) {
     }
   };
 
-  window.addEventListener('scroll', onScroll, { passive: true });
-  window.addEventListener('resize', onScroll);
+  // Follow the scroll only while the section is near the screen. Everywhere else the handler
+  // would read the section's box on every scroll frame for nothing, and that read forces a
+  // style recalculation each time (it showed up in the Projects section's frame profile).
+  let listening = false;
+  const setListening = (on) => {
+    if (on === listening) return;
+    listening = on;
+    const method = on ? 'addEventListener' : 'removeEventListener';
+    window[method]('scroll', onScroll, { passive: true });
+    window[method]('resize', onScroll);
+    if (on) onScroll();
+  };
+
+  if (typeof IntersectionObserver === 'function') {
+    new IntersectionObserver((entries) => {
+      setListening(entries[entries.length - 1].isIntersecting);
+    }, { rootMargin: '10% 0px' }).observe(section);
+  } else {
+    setListening(true);
+  }
   update();
 }
 
@@ -419,15 +437,29 @@ const PD_GAP_M = 0.05;
 const PD_PERSPECTIVE_M = 2.2;    // perspective distance in card widths (desktop uses radius * 3)
 const PD_SHADE = 0.85;           // max edge darkness
 const PD_FADE = [1.45, 1.75];    // rad: cards fade out between these angles
-const PD_STIFFNESS = 6;          // spring easing toward the scroll target (lower = softer)
+const PD_STIFFNESS = 8;          // spring easing toward the scroll target (lower = softer)
 const PD_SCROLL_PER_CARD = 0.6;  // stage heights of scrolling per card
 const PD_START = -1.6;           // cards offset at roll-in start (rolls in from the left)
-const PD_SNAP_DELAY = 140;       // ms after scrolling stops before settling on the nearest card
+const PD_DETENT = 0.5;           // 0 = drum follows the scroll 1:1, 1 = drum stops dead at every card
 
 /** Card index position (0 .. count-1) for `scrolled` px into a pinned track of `distance` px. */
 function drumAngle(scrolled, distance, count) {
   if (!(distance > 0) || !(count > 1)) return 0;
   return clamp(scrolled / distance, 0, 1) * (count - 1);
+}
+
+/**
+ * Soft detents for the scroll-driven drum. `pos` is a card position (0 .. count-1). Between two
+ * whole numbers the drum slows down near each card and speeds up in between (a sine bend of
+ * `strength`), so a card lingers square to the viewer but the drum never stops dead while the
+ * visitor is still scrolling, and the page scroll itself is never touched. Whole numbers map to
+ * themselves, so the ends are unchanged, and the curve never runs backwards for strength <= 1.
+ */
+function drumDetent(pos, strength) {
+  const k = strength === undefined ? PD_DETENT : strength;
+  const base = Math.floor(pos);
+  const f = pos - base;
+  return base + f - (k / (2 * Math.PI)) * Math.sin(2 * Math.PI * f);
 }
 
 /**
@@ -449,10 +481,15 @@ function drumPlace(offset, radius, gap, shade) {
 
 /**
  * Projects drum: the cards sit side by side on the surface of a drum that turns about its
- * vertical axis, so they roll in horizontally. Scrolling drives the target card; a spring
- * eases the drum toward it and settles on the nearest card when scrolling stops. The section pins
- * while the drum turns, then scrolls on. On first view the drum rolls in from the side.
- * Without JS, WAAPI or with reduced motion, the cards stay a plain vertical list.
+ * vertical axis, so they roll in horizontally. Scrolling drives the target card (with soft
+ * detents, see drumDetent) and a spring eases the drum toward it. The page scroll itself is never
+ * moved by the script. The section pins while the drum turns, then scrolls on. On first view
+ * the drum rolls in from the side. Without JS, WAAPI or with reduced motion, the cards stay a
+ * plain vertical list.
+ *
+ * Frame cost matters here: every frame reads the scroll position first, then writes only the
+ * styles that changed, and the drum shading is a separate layer whose opacity is set directly
+ * (a CSS variable on the card would re-resolve the styles of everything inside it).
  */
 function initProjectsDrum() {
   const section = document.getElementById('projects');
@@ -528,10 +565,19 @@ function initProjectsDrum() {
     front.appendChild(glareF);
     back.appendChild(glareB);
 
+    // Drum shading: a black film per face. Its opacity is set directly each frame, and it is its
+    // own compositor layer, so the painting underneath is not redrawn while the drum turns.
+    const shadeF = document.createElement('span');
+    shadeF.className = 'pd-shade';
+    shadeF.setAttribute('aria-hidden', 'true');
+    const shadeB = shadeF.cloneNode();
+    front.appendChild(shadeF);
+    back.appendChild(shadeB);
+
     rotor.append(front, back);
     tilt.appendChild(rotor);
     card.appendChild(tilt);
-    return { card, tilt, front, back, toggle, backBtn };
+    return { card, tilt, front, back, toggle, backBtn, shades: [shadeF, shadeB] };
   });
 
   let flippedIndex = -1;
@@ -565,9 +611,15 @@ function initProjectsDrum() {
     });
   });
 
-  // Hover tilt, lift and glare on the front card (mouse only)
+  // Hover tilt, lift and glare on the front card (mouse only). The handler only records the
+  // pointer; one frame callback then reads the card's box and writes, so a fast mouse costs at
+  // most one style update per frame. Tilt waits while the drum is turning (the card under the
+  // pointer is moving, and redrawing the glare every frame would only add cost).
   let tilted = null;
+  let tiltPoint = null;
+  let tiltRaf = 0;
   const resetTilt = () => {
+    tiltPoint = null;
     if (!tilted) return;
     tilted.style.removeProperty('--tx');
     tilted.style.removeProperty('--ty');
@@ -575,22 +627,31 @@ function initProjectsDrum() {
     tilted.style.removeProperty('--sheen');
     tilted = null;
   };
-  stage.addEventListener('pointermove', (e) => {
-    if (e.pointerType !== 'mouse') return;
-    const card = e.target.closest('.project-card.is-front');
+  const applyTilt = () => {
+    tiltRaf = 0;
+    const pt = tiltPoint;
+    if (!pt) return;
+    if (current !== target || revealing || drag) { resetTilt(); return; }
+    const card = pt.target.closest('.project-card.is-front');
     const f = card && flips.find((x) => x.card === card);
     if (!f) { resetTilt(); return; }
     if (tilted && tilted !== f.tilt) resetTilt();
     tilted = f.tilt;
+    tiltPoint = pt;
     const r = card.getBoundingClientRect();
-    const px = clamp((e.clientX - r.left) / r.width, 0, 1);
-    const py = clamp((e.clientY - r.top) / r.height, 0, 1);
+    const px = clamp((pt.x - r.left) / r.width, 0, 1);
+    const py = clamp((pt.y - r.top) / r.height, 0, 1);
     f.tilt.style.setProperty('--tx', `${((0.5 - py) * 2 * PD_TILT_MAX).toFixed(2)}deg`);
     f.tilt.style.setProperty('--ty', `${((px - 0.5) * 2 * PD_TILT_MAX).toFixed(2)}deg`);
     f.tilt.style.setProperty('--gx', `${(px * 100).toFixed(1)}%`);
     f.tilt.style.setProperty('--gy', `${(py * 100).toFixed(1)}%`);
     f.tilt.style.setProperty('--lift', '1.03');
     f.tilt.style.setProperty('--sheen', '1');
+  };
+  stage.addEventListener('pointermove', (e) => {
+    if (e.pointerType !== 'mouse') return;
+    tiltPoint = { x: e.clientX, y: e.clientY, target: e.target };
+    if (!tiltRaf) tiltRaf = requestAnimationFrame(applyTilt);
   });
   stage.addEventListener('pointerleave', resetTilt);
 
@@ -603,6 +664,9 @@ function initProjectsDrum() {
   let reveal = PD_START; // extra offset while rolling in
   let rafId = 0;
   let last = 0;
+
+  // What render() last wrote to each card, so an unchanged value is never written again
+  const view = cards.map(() => ({ opacity: '', visible: null, pointer: null, front: null, shade: '' }));
 
   // Phones and tablets: no scroll pinning; the drum turns with horizontal swipes
   const mobileMQ = window.matchMedia('(max-width: 1023.98px), (pointer: coarse)');
@@ -623,42 +687,60 @@ function initProjectsDrum() {
     }
     distance = (count - 1) * stageH * PD_SCROLL_PER_CARD;
     track.style.height = `${Math.round(stageH + distance)}px`;
-    target = drumAngle(navH - track.getBoundingClientRect().top, distance, count);
+    target = scrollTarget();
   }
 
+  /** Card position the page scroll asks for: pinned scroll mapped to cards, with soft detents. */
+  const scrollTarget = () => drumDetent(drumAngle(navH - track.getBoundingClientRect().top, distance, count));
+
+  /** Place every card. Only values that changed since the last call touch the DOM. */
   function render() {
     const pos = current + reveal;
-    cards.forEach((card, i) => {
+    for (let i = 0; i < count; i++) {
+      const card = cards[i];
+      const v = view[i];
       const p = swipeMode
         ? drumPlace(i - pos, PD_RADIUS_M, PD_GAP_M, PD_SHADE)
         : drumPlace(i - pos, PD_RADIUS, PD_GAP, PD_SHADE);
-      card.style.transform =
-        `translate(-50%, -50%) translate3d(${(p.x * cardW).toFixed(1)}px, 0, ${(p.z * cardW).toFixed(1)}px) rotateY(${p.ry.toFixed(4)}rad)`;
-      card.style.opacity = p.fade.toFixed(3);
-      card.style.visibility = p.fade > 0.001 ? '' : 'hidden';
-      card.style.setProperty('--shade', p.shade.toFixed(3));
+      const visible = p.fade > 0.001;
+      // A card that is out of sight is left alone until it comes back
+      if (visible) {
+        card.style.transform =
+          `translate(-50%, -50%) translate3d(${(p.x * cardW).toFixed(1)}px, 0, ${(p.z * cardW).toFixed(1)}px) rotateY(${p.ry.toFixed(4)}rad)`;
+        const opacity = p.fade.toFixed(3);
+        if (opacity !== v.opacity) { card.style.opacity = opacity; v.opacity = opacity; }
+        const shade = p.shade.toFixed(3);
+        if (shade !== v.shade) {
+          v.shade = shade;
+          flips[i].shades.forEach((el) => { el.style.opacity = shade; });
+        }
+      }
+      if (visible !== v.visible) { card.style.visibility = visible ? '' : 'hidden'; v.visible = visible; }
       // Front card is interactive; visible neighbours can be clicked to bring them to the front
       const front = Math.abs(i - pos) < 0.5;
-      card.classList.toggle('is-front', front);
+      if (front !== v.front) { card.classList.toggle('is-front', front); v.front = front; }
       // Only the front card can be flipped: turn it back when another card rolls to the front
       if (!front && flippedIndex === i) setFlipped(i, false);
-      card.style.pointerEvents = Math.abs(i - pos) < 1.6 ? '' : 'none';
-    });
+      const pointer = Math.abs(i - pos) < 1.6 ? '' : 'none';
+      if (pointer !== v.pointer) { card.style.pointerEvents = pointer; v.pointer = pointer; }
+    }
   }
 
-  /** Spring the drum toward the scroll target. */
+  /**
+   * One frame of the drum: read the scroll position, spring toward it, write the changes.
+   * The loop stops by itself once the drum has arrived.
+   */
   function tick(now) {
+    rafId = 0;
+    if (!swipeMode && !drag) target = scrollTarget();
     const dt = Math.min(0.05, last ? (now - last) / 1000 : 1 / 60);
     last = now;
+    const before = current;
     current += (target - current) * (1 - Math.exp(-PD_STIFFNESS * dt));
     if (Math.abs(target - current) < 0.0005) current = target;
-    render();
-    if (current !== target || revealing) {
-      rafId = requestAnimationFrame(tick);
-    } else {
-      rafId = 0;
-      last = 0;
-    }
+    if (current !== before || revealing) render();
+    if (current !== target || revealing) rafId = requestAnimationFrame(tick);
+    else last = 0;
   }
 
   const wake = () => { if (!rafId) rafId = requestAnimationFrame(tick); };
@@ -667,38 +749,10 @@ function initProjectsDrum() {
   const cardScrollTop = (i) =>
     track.getBoundingClientRect().top + window.scrollY - navH + i * stageH * PD_SCROLL_PER_CARD;
 
-  // When scrolling stops between two cards, glide to the nearest one instead of resting half-turned
-  let snapId = 0;
-  let snapping = false;
-  function snap() {
-    snapId = 0;
-    const scrolled = navH - track.getBoundingClientRect().top;
-    if (scrolled <= 0 || scrolled >= distance) return; // not pinned: leave the page alone
-    const pos = drumAngle(scrolled, distance, count);
-    const nearest = Math.round(pos);
-    if (Math.abs(pos - nearest) < 0.01) return;
-    snapping = true;
-    try {
-      window.scrollTo({ top: cardScrollTop(nearest), left: 0, behavior: 'smooth' });
-    } catch (err) {
-      window.scrollTo(0, cardScrollTop(nearest));
-    }
-    target = nearest;
-    wake();
-  }
-
+  // The scroll position is read inside tick(), once per frame, so the handler only wakes the loop
   const onScroll = () => {
     if (swipeMode) return; // page scroll never turns the drum on mobile
-    target = drumAngle(navH - track.getBoundingClientRect().top, distance, count);
     wake();
-    clearTimeout(snapId);
-    // Smooth-scroll events from the snap itself must not re-arm it
-    if (snapping) {
-      // Once the glide ends, re-check in case the visitor scrolled again during it
-      snapId = setTimeout(() => { snapping = false; snap(); }, PD_SNAP_DELAY);
-      return;
-    }
-    snapId = setTimeout(snap, PD_SNAP_DELAY);
   };
   const onResize = () => { layout(); render(); wake(); };
 
@@ -751,14 +805,13 @@ function initProjectsDrum() {
       return;
     }
     const top = cardScrollTop(i);
-    if (smooth) snapping = true;
     try {
       window.scrollTo({ top, left: 0, behavior: smooth ? 'smooth' : 'instant' });
     } catch (err) {
       window.scrollTo(0, top);
     }
-    target = i;
-    if (!smooth) { current = i; render(); }
+    // A smooth scroll is followed frame by frame; a jump lands on the card straight away
+    if (!smooth) { target = i; current = i; render(); }
     wake();
   }
 
@@ -919,10 +972,22 @@ function initTechText() {
   return instances;
 }
 
+/**
+ * Halftone sphere behind the hero photo (see js/halftone.js). Pointer events are read from the
+ * whole hero, so the dots react wherever the pointer is over it, including over the photo.
+ */
+function initHalftone() {
+  const canvas = document.querySelector('.hero-halftone');
+  const hero = document.getElementById('hero');
+  if (!canvas || !hero || typeof window.createHalftone !== 'function') return null;
+  return window.createHalftone(canvas, { host: hero });
+}
+
 if (typeof document !== 'undefined') {
   document.addEventListener('DOMContentLoaded', () => {
     // TechText on the hero name and section titles (mouse devices only; touch keeps plain text)
     initTechText();
+    initHalftone();
     // Runs once per load; anchor navigation never re-triggers it. Replay is the footer button.
     initDrumIntro({ replayBtn: document.querySelector('.replay-btn') }).play();
     initNav();
@@ -934,7 +999,7 @@ if (typeof document !== 'undefined') {
 // Expose pure helpers for Node-based unit tests
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    clamp, drumAngle, drumPlace,
+    clamp, drumAngle, drumDetent, drumPlace,
     faceHeight, easeInOutCubic, blurAmount, faceShade, shadowOffset
   };
 }

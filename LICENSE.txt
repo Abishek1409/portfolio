@@ -1,0 +1,41 @@
+BOOK OF SHAPES LICENCE
+bookofshapes.com/license — September 2026
+
+USE IT FOR ANYTHING
+
+  Whatever you generate on this site is yours to use. Commercial or not,
+  modified or as it comes, in print, on screen, on products. No fee, no
+  permission needed, no attribution required.
+
+ONE LIMIT
+
+  Do not redistribute the patterns as patterns. Selling or giving away an
+  SVG pack, a clipart set, a template library or a generator built from them
+  is the one thing this licence does not cover.
+
+  The short version: a pattern can be part of what you sell. It cannot be
+  the thing you sell.
+
+THREE EXCEPTIONS
+
+  Three patterns recreate existing works and are not mine to hand over. Joy
+  Division and Joy Division Mesh follow the Unknown Pleasures cover, and
+  Brockmann Beethoven Arcs follows a Müller-Brockmann poster.
+
+  They are here to show how the originals were built. Study them, take them
+  apart, learn from them. Do not publish or sell them, least of all on a
+  record sleeve or a poster, where the resemblance is the whole point.
+
+NOT COVERED
+
+  The pattern definitions behind this site (the node graphs) and the source
+  code of the site itself are not covered by this licence.
+
+CREDIT
+
+  Not required. If you would like to give it anyway, “Pattern from
+  bookofshapes.com” is plenty.
+
+  And I would genuinely like to see what you made with it.
+
+Nikolaj Sokolowski — bookofshapes.com

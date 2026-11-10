@@ -216,6 +216,8 @@ section { scroll-margin-top: var(--nav-h); }
 
 /* ===== Hero_Section ===== */
 .hero {
+  position: relative;
+  overflow: hidden;       /* the halftone sphere is wider than its column */
   min-height: 100vh;
   min-height: 100svh;
   display: flex;
@@ -257,7 +259,41 @@ section { scroll-margin-top: var(--nav-h); }
   gap: 1rem;
 }
 
-.hero-photo { justify-self: center; }
+/* Text sits above the halftone sphere, which is wider than the photo column */
+.hero-text { position: relative; z-index: 2; }
+
+/* Photo column: the halftone sphere is centred on the photo and reaches past it on every side */
+.hero-visual {
+  position: relative;
+  z-index: 1;
+  justify-self: center;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.hero-halftone {
+  --halftone-dot: #e0e0e0;            /* the dot colour of halftone-sphere-2026-11-10.svg */
+  --halftone-accent: var(--accent);   /* dots under the pointer turn this colour */
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 175%;
+  height: auto;
+  aspect-ratio: 1;
+  /* The individual property, so the intro stagger's own transform can still apply on top */
+  translate: -50% -50%;
+  pointer-events: none;               /* pointer events are read from the whole hero */
+}
+
+/* Dots show through a transparent button, so the hero buttons get a solid fill */
+.hero .btn-outline { background: var(--bg); }
+.hero .btn-outline:hover { background: var(--accent); }
+
+/* A finger dragging sideways over the hero moves the sphere's lens; vertical drags still scroll */
+.hero { touch-action: pan-y pinch-zoom; }
+
+.hero-photo { position: relative; z-index: 1; }
 
 /* Natural portrait ratio: the full photo is shown, never cropped */
 .hero-photo img {
@@ -269,16 +305,57 @@ section { scroll-margin-top: var(--nav-h); }
   box-shadow: 0 0 3rem rgba(201, 164, 106, 0.25);
 }
 
+/* Phones: the details lead at the top and the photo sits to the side, level with the tagline,
+   instead of a large centred photo pushing everything else below the fold. */
 @media (max-width: 767.98px) {
-  .hero-inner {
-    grid-template-columns: 1fr;
-    gap: 2rem;
-    text-align: center;
+  .hero {
+    align-items: flex-start;
+    padding: calc(var(--nav-h) + 1.5rem) 1.25rem 2.5rem;
   }
-  .hero-photo { order: -1; }
-  .hero-photo img { max-width: min(100%, 60vh); margin-inline: auto; }
-  .hero-tagline { margin-inline: auto; }
-  .hero-ctas { justify-content: center; }
+  .hero-inner {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.76fr);
+    grid-template-areas:
+      "eyebrow eyebrow"
+      "name    name"
+      "tagline visual"
+      "ctas    ctas";
+    align-items: start;
+    gap: 0 1rem;
+    text-align: left;
+  }
+  /* The text children join the grid directly, so the photo can sit between them */
+  .hero-text { display: contents; }
+  .hero-eyebrow,
+  .hero-name,
+  .hero-tagline,
+  .hero-ctas { position: relative; z-index: 2; }
+  .hero-eyebrow { grid-area: eyebrow; }
+  .hero-name { grid-area: name; }
+  .hero-tagline {
+    grid-area: tagline;
+    font-size: 1rem;
+    line-height: 1.55;
+    margin-bottom: 1.5rem;
+  }
+  .hero-ctas { grid-area: ctas; margin-top: 0.5rem; }
+  .hero-visual { grid-area: visual; position: static; z-index: auto; }
+  /* The sphere is anchored to the bottom of the hero instead, filling the space under the
+     details. It is the largest thing on the phone screen and reacts to touch. */
+  .hero-halftone {
+    top: auto;
+    bottom: -3rem;
+    width: min(125vw, 34rem);
+    translate: -50% 0;
+  }
+  .hero-photo { width: 100%; }
+  .hero-photo img {
+    width: 100%;
+    max-width: none;
+    aspect-ratio: 4 / 5;
+    object-fit: cover;
+    object-position: 50% 30%;
+    border-radius: 1rem;
+  }
 }
 
 /* ===== Shared section styles ===== */
@@ -533,7 +610,8 @@ section { scroll-margin-top: var(--nav-h); }
 /* Drum mode (JS adds .pd-on). The cards sit side by side on a drum that turns about its
    vertical axis, so they roll in horizontally as the visitor scrolls. The stage pins below
    the nav while the track (height set by JS) provides the scroll distance. JS positions each
-   card per frame with translate3d + rotateY and sets --shade for edge darkening. */
+   card per frame with translate3d + rotateY and sets the opacity of each face's .pd-shade
+   film for edge darkening. */
 .pd-on .stack {
   display: block;
   gap: 0;
@@ -553,6 +631,11 @@ section { scroll-margin-top: var(--nav-h); }
   position: absolute;
   inset: 0;
   transform-style: preserve-3d;
+  /* The drum is itself a flat plane at z = 0 inside its own 3D context. If it could be hit it
+     would sit in front of every part of a card that lies behind that plane: all of each side
+     card, and one half of the front card whenever it is turned even slightly. Clicks and hovers
+     then landed on the empty drum instead of the card. The cards re-enable pointer events. */
+  pointer-events: none;
 }
 
 /* Portrait cards, narrow enough that two neighbours curve away on each side of the front card */
@@ -576,6 +659,7 @@ section { scroll-margin-top: var(--nav-h); }
   transform: translate(-50%, -50%);
   will-change: transform, opacity;
   cursor: pointer;
+  pointer-events: auto; /* the drum itself ignores the pointer; far cards get 'none' from JS */
 }
 .pd-on .project-card.is-front { cursor: auto; }
 
@@ -601,19 +685,6 @@ section { scroll-margin-top: var(--nav-h); }
   border-radius: inherit;
   /* Kept subtle so it never washes out the text */
   background: linear-gradient(115deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 30%);
-  pointer-events: none;
-}
-
-/* Edge shading: JS writes --shade (0 in front .. 0.85 at the drum's edge). It sits above the
-   text (z-index 2) so side cards darken as a whole; on the front card it is fully transparent. */
-.pd-on .project-card::after {
-  z-index: 2;
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: #000;
-  opacity: var(--shade, 0);
   pointer-events: none;
 }
 
@@ -867,16 +938,19 @@ section { scroll-margin-top: var(--nav-h); }
   transition: opacity 0.3s ease;
 }
 
-/* Drum depth: JS writes --shade on the card; each face darkens with it */
-.pd-face::after {
-  content: '';
+/* Drum depth: JS sets this film's opacity directly (0 in front .. 0.85 at the drum's edge). It is
+   a real element on its own compositor layer, so darkening a face never repaints the painting
+   under it. (A CSS variable on the card would be inherited by everything inside, and every
+   frame all of those styles, and the faces' pixels, would be redone.) */
+.pd-face > .pd-shade {
   position: absolute;
   inset: 0;
   z-index: 4;
   border-radius: inherit;
   background: #000;
-  opacity: var(--shade, 0);
+  opacity: 0;
   pointer-events: none;
+  will-change: opacity;
 }
 
 /* Invisible full-card button: makes the flip keyboard/screen-reader accessible */
@@ -1357,22 +1431,34 @@ html.is-intro {
   text-transform: uppercase;
 }
 
-/* Pulsing "live" dot */
+/* Pulsing "live" dot. The ring is a pseudo-element that scales and fades (transform and opacity
+   only), which the compositor runs without redrawing anything. The earlier version animated
+   box-shadow, which repainted the whole card face on every frame, forever. */
 .project-badge-dot {
+  position: relative;
   width: 0.5rem;
   height: 0.5rem;
   border-radius: 50%;
   background: #1a7f37;
-  box-shadow: 0 0 0 0 rgba(26, 127, 55, 0.6);
+}
+.project-badge-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(26, 127, 55, 0.6);
   animation: badge-pulse 2s ease-out infinite;
 }
 @keyframes badge-pulse {
-  0% { box-shadow: 0 0 0 0 rgba(26, 127, 55, 0.6); }
-  70% { box-shadow: 0 0 0 0.5rem rgba(26, 127, 55, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(26, 127, 55, 0); }
+  0% { transform: scale(1); opacity: 1; }
+  70%, 100% { transform: scale(3); opacity: 0; }
 }
+/* On the drum the badge sits on the back of the card, so it only needs to pulse once flipped open */
+.pd-on .project-badge-dot::after { animation: none; opacity: 0; }
+.pd-on .project-card.is-flipped .project-badge-dot::after { animation: badge-pulse 2s ease-out infinite; }
 @media (prefers-reduced-motion: reduce) {
-  .project-badge-dot { animation: none; }
+  .project-badge-dot::after,
+  .pd-on .project-card.is-flipped .project-badge-dot::after { animation: none; opacity: 0; }
 }
 
 /* Two buttons side by side (Code Base + Website) */
