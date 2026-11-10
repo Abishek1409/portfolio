@@ -733,11 +733,13 @@ section { scroll-margin-top: var(--nav-h); }
   min-height: 0;
   max-width: none;
   margin: 0;
-  overflow: auto;           /* a long description scrolls inside the panel */
+  overflow: auto;           /* a very long description can still be scrolled, but shows no scrollbar */
+  scrollbar-width: none;
   color: var(--text);
   font-size: 0.875rem;
   line-height: 1.55;
 }
+.pd-detail .project-desc::-webkit-scrollbar { display: none; }
 .pd-detail .project-tech { margin: 0; gap: 0.35rem; }
 .pd-detail .project-tech li {
   padding: 0.2rem 0.6rem;

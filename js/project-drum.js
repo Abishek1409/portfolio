@@ -298,7 +298,7 @@
       canvas.height = Math.round(cssH * dpr);
       gl.viewport(0, 0, canvas.width, canvas.height);
       const narrow = cssW < 640;
-      const width = Math.min(cssW * (narrow ? 0.7 : 0.27), (cssH * (narrow ? 0.7 : 0.6)) / ASPECT);
+      const width = Math.min(cssW * (narrow ? 0.82 : 0.36), (cssH * (narrow ? 0.8 : 0.84)) / ASPECT);
       card = { w: width, h: width * ASPECT };
       centreY = narrow ? 0.44 : 0.47;
       if (loaded) render(lastPos, lastSpeed);
