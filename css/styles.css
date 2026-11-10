@@ -310,7 +310,8 @@ section { scroll-margin-top: var(--nav-h); }
 @media (max-width: 767.98px) {
   .hero {
     align-items: flex-start;
-    padding: calc(var(--nav-h) + 1.5rem) 1.25rem 2.5rem;
+    min-height: 0;   /* the hero is as tall as its content; no empty screen under the buttons */
+    padding: calc(var(--nav-h) + 1.5rem) 1.25rem 5rem;
   }
   .hero-inner {
     grid-template-columns: minmax(0, 1fr) minmax(0, 0.76fr);
@@ -336,17 +337,14 @@ section { scroll-margin-top: var(--nav-h); }
     font-size: 1rem;
     line-height: 1.55;
     margin-bottom: 1.5rem;
+    /* A dark halo behind the letters keeps the sphere's dots from cutting through the words */
+    text-shadow: 0 0 0.35rem var(--bg), 0 0 0.8rem var(--bg), 0 0 1.2rem var(--bg);
   }
   .hero-ctas { grid-area: ctas; margin-top: 0.5rem; }
-  .hero-visual { grid-area: visual; position: static; z-index: auto; }
-  /* The sphere is anchored to the bottom of the hero instead, filling the space under the
-     details. It is the largest thing on the phone screen and reacts to touch. */
-  .hero-halftone {
-    top: auto;
-    bottom: -3rem;
-    width: min(125vw, 34rem);
-    translate: -50% 0;
-  }
+  .hero-visual { grid-area: visual; }
+  /* As on a laptop, the sphere is centred on the photo and reaches well past it, so its dots
+     frame the photo and run under the text and the buttons (which sit above it). */
+  .hero-halftone { width: 300%; }
   .hero-photo { width: 100%; }
   .hero-photo img {
     width: 100%;
@@ -755,18 +753,48 @@ section { scroll-margin-top: var(--nav-h); }
   .pd-on .project-desc { -webkit-line-clamp: 5; line-clamp: 5; }
 }
 
+/* Rail: only used on phones, where it is as wide as the sideways travel. On a laptop it adds no
+   box, so the drum is positioned against the stage as before. */
+.pd-rail { display: contents; }
+.pd-snap { display: none; }
+
 /* Mobile / touch (JS adds .pd-swipe): no scroll pinning. The stage is a normal block the page
-   scrolls past, and horizontal swipes turn the drum. touch-action: pan-y keeps vertical page
-   scrolling native while the browser hands horizontal gestures to JS. */
+   scrolls past, and it scrolls sideways natively, with momentum and snapping to one card. The
+   drum is sticky, so it stays in view while the stage scrolls under it, and JS ties the cards
+   to that scroll position. Vertical swipes still scroll the page: the browser tells the two
+   apart from the direction of the gesture. */
 .pd-swipe .pd-stage {
   position: relative;
   top: auto;
   height: min(78svh, 40rem);
-  touch-action: pan-y;
-  overflow: hidden;
-  cursor: grab;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
 }
-.pd-swipe .pd-stage:active { cursor: grabbing; }
+.pd-swipe .pd-stage::-webkit-scrollbar { display: none; }
+.pd-swipe .pd-rail {
+  display: block;
+  position: relative;
+  height: 100%;
+}
+.pd-swipe .pd-drum {
+  position: sticky;
+  inset: auto;
+  top: 0;
+  left: 0;
+  height: 100%;     /* width is set by JS: the rail is wider than the stage */
+}
+.pd-swipe .pd-snap {
+  display: block;
+  position: absolute;
+  top: 0;
+  height: 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always; /* one card per swipe, however hard the flick */
+  pointer-events: none;
+}
 /* Narrower cards on a tighter drum, so the neighbours stay on screen curving away at both
    edges and the swipe visibly turns a drum rather than sliding one card */
 .pd-swipe .project-card {
