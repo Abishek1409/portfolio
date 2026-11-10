@@ -426,57 +426,18 @@ function drumReveal(el, options) {
   return el.animate(frames, { duration: o.duration || REVEAL_MS, easing: DRUM_EASING, fill: 'forwards' });
 }
 
-// Horizontal drum carousel (cards wrap around a vertical axis, like a rolling drum seen side-on)
-const PD_RADIUS = 2;             // drum radius as a multiple of card width (two neighbours visible per side)
-const PD_GAP = 0.22;             // spacing between cards as a fraction of card width
-const PD_TILT_MAX = 8;           // deg, hover tilt of the front flip card
-// Mobile drum: tighter and seen from closer, so the curve reads clearly on a narrow screen
-// Full-size cards: neighbours sit ~60deg round the drum and peek in as curved edges at both sides
-const PD_RADIUS_M = 1;
-const PD_GAP_M = 0.05;
-const PD_PERSPECTIVE_M = 2.2;    // perspective distance in card widths (desktop uses radius * 3)
-const PD_SHADE = 0.85;           // max edge darkness
-const PD_FADE = [1.45, 1.75];    // rad: cards fade out between these angles
-const PD_SCROLL_PER_CARD = 0.45; // laptop: stage heights of page scrolling per card
-const PD_SWIPE_STEP = 0.75;      // phone: card widths of swiping per card
-const PD_SAMPLES = 8;            // keyframes per card of travel in the scroll-linked animations
-const PD_START = -1.6;           // cards offset at roll-in start (rolls in from the left)
-const PD_DETENT = 0.25;          // 0 = drum follows the scroll 1:1, 1 = drum stops dead at every card
+// Projects drum (see initProjectsDrum, and js/project-drum.js for the drawing)
+const PD_FADE = [1.45, 1.75];    // rad: cards fade out between these angles (used by drumPlace)
+const PD_STIFFNESS = 6;          // laptop: spring easing toward the scroll position (lower = softer)
+const PD_SETTLE_MS = 180;        // laptop: stillness after which the drum glides on to the nearest card
+const PD_SCROLL_PER_CARD = 0.6;  // laptop: stage heights of page scrolling per card
+const PD_SWIPE_STEP = 1.05;      // phone: card widths of swiping per card (about one swipe)
+const PD_START = -1.6;           // cards offset at roll-in start (rolls in from the side)
 
 /** Card index position (0 .. count-1) for `scrolled` px into a pinned track of `distance` px. */
 function drumAngle(scrolled, distance, count) {
   if (!(distance > 0) || !(count > 1)) return 0;
   return clamp(scrolled / distance, 0, 1) * (count - 1);
-}
-
-/**
- * Soft detents for the scroll-driven drum. `pos` is a card position (0 .. count-1). Between two
- * whole numbers the drum slows down near each card and speeds up in between (a sine bend of
- * `strength`), so a card lingers square to the viewer but the drum never stops dead while the
- * visitor is still scrolling, and the page scroll itself is never touched. Whole numbers map to
- * themselves, so the ends are unchanged, and the curve never runs backwards for strength <= 1.
- */
-function drumDetent(pos, strength) {
-  const k = strength === undefined ? PD_DETENT : strength;
-  const base = Math.floor(pos);
-  const f = pos - base;
-  return base + f - (k / (2 * Math.PI)) * Math.sin(2 * Math.PI * f);
-}
-
-/**
- * Sample points along the drum's whole travel, for building scroll-linked keyframes. `u` is the
- * share of the scroll travel (0 .. 1) and `pos` the card position the drum shows there.
- * `detent` bends the travel as in drumDetent; 0 keeps it linear.
- */
-function drumSamples(count, detent) {
-  const n = Math.max(1, (count - 1) * PD_SAMPLES);
-  const out = [];
-  for (let j = 0; j <= n; j++) {
-    const u = j / n;
-    const linear = u * (count - 1);
-    out.push({ u, pos: detent ? drumDetent(linear, detent) : linear });
-  }
-  return out;
 }
 
 /**
@@ -497,22 +458,20 @@ function drumPlace(offset, radius, gap, shade) {
 }
 
 /**
- * Projects drum: the cards sit side by side on the surface of a drum that turns about its
- * vertical axis, so they roll in horizontally.
+ * Projects drum. The project cards are drawn on a WebGL drum (js/project-drum.js): each card is
+ * wrapped round a rolling cylinder, darker and more transparent toward its edge.
  *
- * The drum's position always comes from a native scroll position, never from script-driven
- * physics: the page scroll on a laptop (the section pins while the drum turns), and a sideways
- * scrolling, snapping stage on a phone. The browser already does momentum, snapping and
- * smoothing for those off the main thread, so the drum feels exactly as responsive as plain
- * scrolling. The page scroll itself is never moved by the script.
+ * Laptop: the section pins while the drum turns. The page scroll sets where the drum should be,
+ * and a soft spring carries the drum there, so the cards glide and roll rather than following
+ * the wheel in steps. When the visitor stops scrolling the drum glides on to the nearest card.
+ * Only the drum does this: the script never moves the page scroll.
  *
- * Where scroll-linked animations exist (ScrollTimeline, Chrome and Edge 115+), each card, and
- * its shading, is a Web Animation tied to the scroll position. The compositor then moves the
- * cards without running any script per frame, so a busy main thread cannot make them stutter.
- * Elsewhere the same positions are written from a scroll handler, once per frame.
+ * Phone: the stage scrolls sideways natively, with momentum and snapping to one card, and the
+ * drum is drawn at that scroll position.
  *
- * On first view the drum rolls in from the side. Without JS, WAAPI or with reduced motion, the
- * cards stay a plain vertical list.
+ * Click the front card (or press Enter on its hidden button) to open its details; click a side
+ * card to roll it to the front. The original <article> cards stay in the page as the source of
+ * those details and as the plain list shown without JS, WebGL or with reduced motion.
  */
 function initProjectsDrum() {
   const section = document.getElementById('projects');
@@ -520,499 +479,358 @@ function initProjectsDrum() {
   const heading = section && section.querySelector('.projects-reveal');
   const cards = track ? Array.from(track.querySelectorAll('.project-card')) : [];
   const header = document.querySelector('.site-header');
-  if (!heading || cards.length < 2 || prefersReducedMotion() ||
+  if (!heading || cards.length < 2 || prefersReducedMotion() || typeof window.createProjectDrum !== 'function' ||
       typeof heading.animate !== 'function' || typeof IntersectionObserver !== 'function') return;
 
   const count = cards.length;
-  const root = document.documentElement;
 
-  // Structure: stage (clips; scrolls sideways on a phone) > rail (as wide as the sideways travel)
-  // > drum (3D) > cards. The rail also holds one snap point per card for the phone mode.
-  // No filter on the drum: a filter flattens preserve-3d, which made the cards snap flat.
-  const stage = document.createElement('div');
-  stage.className = 'pd-stage';
-  const rail = document.createElement('div');
-  rail.className = 'pd-rail';
-  const drum = document.createElement('div');
-  drum.className = 'pd-drum';
-  cards.forEach((card) => drum.appendChild(card));
-  rail.appendChild(drum);
-  const snaps = cards.map(() => {
-    const snap = document.createElement('span');
-    snap.className = 'pd-snap';
-    snap.setAttribute('aria-hidden', 'true');
-    rail.appendChild(snap);
-    return snap;
-  });
-  stage.appendChild(rail);
-  track.appendChild(stage);
-  section.classList.add('pd-on', 'pd-pending');
-  root.classList.add('pd-flipcards'); // CSS: paintings get the light scrim
-
-  // Flip cards (vanilla take on React Bits FlipCard). Each drum card becomes:
-  //   card (drum transform) > .pd-tilt (hover tilt + lift) > .pd-flip (flip rotor) > two faces
-  // Front: the painting with only the title. Back: badge, description, tech stack and links.
-  // Click/tap the front card to flip it; click again (or "Back", or Escape) to flip back.
-  const flips = cards.map((card) => {
-    const h3 = card.querySelector('h3');
-    const title = h3 ? h3.textContent.trim() : 'project';
-
-    const tilt = document.createElement('div');
-    tilt.className = 'pd-tilt';
-    const rotor = document.createElement('div');
-    rotor.className = 'pd-flip';
-    const front = document.createElement('div');
-    front.className = 'pd-face pd-face--front';
-    const back = document.createElement('div');
-    back.className = 'pd-face pd-face--back';
-    back.inert = true;
-
-    // Back face content: direct children only, so buttons stay inside their .project-links wrapper
-    const backTitle = document.createElement('p');
-    backTitle.className = 'pd-back-title';
-    backTitle.setAttribute('aria-hidden', 'true'); // the real <h3> stays on the front
-    backTitle.textContent = title;
-    const details = Array.from(card.children)
-      .filter((el) => el.matches('.project-badge, .project-desc, .project-tech, .project-links, .project-link'));
-    const backBtn = document.createElement('button');
-    backBtn.type = 'button';
-    backBtn.className = 'pd-back-btn';
-    backBtn.textContent = '\u21ba Back';
-    backBtn.setAttribute('aria-label', `Hide details for ${title}`);
-    back.append(backBtn, backTitle, ...details);
-
-    // Front face: painting (via the card's --card-bg), the title and a prompt
-    const toggle = document.createElement('button');
-    toggle.type = 'button';
-    toggle.className = 'pd-flip-toggle';
-    toggle.setAttribute('aria-expanded', 'false');
-    toggle.setAttribute('aria-label', `Show details for ${title}`);
-    const hint = document.createElement('span');
-    hint.className = 'pd-hint';
-    hint.setAttribute('aria-hidden', 'true');
-    hint.textContent = window.matchMedia('(hover: hover)').matches ? 'Click for details' : 'Tap for details';
-    // Everything left on the card (number, title) moves onto the front face
-    front.append(...Array.from(card.children), hint, toggle);
-
-    const glareF = document.createElement('span');
-    glareF.className = 'pd-glare';
-    glareF.setAttribute('aria-hidden', 'true');
-    const glareB = glareF.cloneNode();
-    front.appendChild(glareF);
-    back.appendChild(glareB);
-
-    // Drum shading: a black film per face, darker toward the drum's edge. It is its own
-    // compositor layer, so the painting underneath is not redrawn while the drum turns.
-    const shadeF = document.createElement('span');
-    shadeF.className = 'pd-shade';
-    shadeF.setAttribute('aria-hidden', 'true');
-    const shadeB = shadeF.cloneNode();
-    front.appendChild(shadeF);
-    back.appendChild(shadeB);
-
-    rotor.append(front, back);
-    tilt.appendChild(rotor);
-    card.appendChild(tilt);
-    return { card, tilt, front, back, toggle, backBtn, shades: [shadeF, shadeB] };
+  // What each card shows: "Name – Subtitle" split into a title and a line under it, the first
+  // technologies (or the client note) bottom left, and its number bottom right.
+  const items = cards.map((card, i) => {
+    const full = card.querySelector('h3').textContent.trim();
+    const [name, ...rest] = full.split(/\s+\u2013\s+/);
+    const live = card.classList.contains('project-card--live');
+    const tech = Array.from(card.querySelectorAll('.project-tech li')).map((li) => li.textContent.trim());
+    return {
+      title: name,
+      subtitle: rest.join(' \u2013 '),
+      label: live ? 'In use by a client' : tech.slice(0, 3).join(' \u00b7 '),
+      index: String(i + 1).padStart(2, '0'),
+      image: card.dataset.image || '',
+      live
+    };
   });
 
-  let flippedIndex = -1;
-  function setFlipped(i, on, focus) {
-    const f = flips[i];
-    if (!f) return;
-    f.card.classList.toggle('is-flipped', on);
-    f.toggle.setAttribute('aria-expanded', String(on));
-    // Only the visible face is reachable by keyboard and assistive tech
-    f.front.inert = on;
-    f.back.inert = !on;
-    f.back.scrollTop = 0;
-    if (on) {
-      if (flippedIndex >= 0 && flippedIndex !== i) setFlipped(flippedIndex, false);
-      flippedIndex = i;
-      if (focus) f.backBtn.focus({ preventScroll: true });
-    } else {
-      if (flippedIndex === i) flippedIndex = -1;
-      if (focus) f.toggle.focus({ preventScroll: true });
+  let stage = null;
+  const canvas = document.createElement('canvas');
+  canvas.className = 'pd-drum';
+  canvas.setAttribute('aria-hidden', 'true');
+  const drum = window.createProjectDrum(canvas, items, { onLost: () => teardown() });
+  if (!drum) return;
+
+  // The list stays hidden while the textures load, and comes back if the drum cannot start
+  section.classList.add('pd-loading');
+  drum.ready.then((ok) => {
+    section.classList.remove('pd-loading');
+    if (ok) start();
+    else drum.destroy();
+  });
+  return;
+
+  function teardown() {
+    drum.destroy();
+    if (stage) stage.remove();
+    section.classList.remove('pd-on', 'pd-pending', 'pd-swipe', 'pd-loading');
+    track.style.height = '';
+  }
+
+  function start() {
+    // Structure: stage (clips; scrolls sideways on a phone) > rail (as wide as the sideways travel)
+    // > canvas, details panel and one snap point per card (phone). The rail adds no box on a laptop.
+    stage = document.createElement('div');
+    stage.className = 'pd-stage';
+    const rail = document.createElement('div');
+    rail.className = 'pd-rail';
+    const detail = document.createElement('div');
+    detail.className = 'pd-detail';
+    detail.setAttribute('role', 'dialog');
+    detail.setAttribute('aria-modal', 'false');
+    const snaps = cards.map(() => {
+      const snap = document.createElement('span');
+      snap.className = 'pd-snap';
+      snap.setAttribute('aria-hidden', 'true');
+      return snap;
+    });
+    rail.append(canvas, detail, ...snaps);
+
+    // One hidden button per card: keyboard and screen reader access to the drum
+    const controls = document.createElement('div');
+    controls.className = 'pd-controls';
+    const buttons = items.map((item, i) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = `${item.title}${item.subtitle ? `: ${item.subtitle}` : ''}. Project ${i + 1} of ${count}. Show details`;
+      button.addEventListener('focus', () => { if (frontIndex() !== i) goTo(i, false); });
+      button.addEventListener('click', () => { goTo(i, false); openDetail(i); });
+      controls.appendChild(button);
+      return button;
+    });
+
+    stage.append(rail, controls);
+    track.appendChild(stage);
+    section.classList.add('pd-on', 'pd-pending');
+
+    // ----- Geometry, position and state -----
+    const mobileMQ = window.matchMedia('(max-width: 1023.98px), (pointer: coarse)');
+    let swipeMode = mobileMQ.matches;     // phones and tablets: sideways swiping instead of pinning
+    let navH = 0;
+    let stageW = 0;
+    let stageH = 0;
+    let step = 0;                         // phone: px of sideways travel per card
+    let distance = 0;                     // laptop: px of page scroll while the section is pinned
+    let pos = 0;                          // card position the drum is drawn at
+    let current = 0;                      // laptop: the spring's position
+    let target = 0;                       // laptop: where the spring is heading
+    let last = 0;                         // time of the previous frame
+    let prevRaw = 0;                      // phone: previous scroll position, for the speed
+    let speed = 0;                        // cards per second, for the motion blur
+    let reveal = PD_START;                // roll-in offset
+    let revealing = false;
+    let rafId = 0;
+    let lastScroll = 0;                   // laptop: time of the latest page scroll
+    let settleTimer = 0;
+    let detailIndex = -1;
+
+    const frontIndex = () => clamp(Math.round(pos), 0, count - 1);
+
+    /** Card position (0 .. count-1) the scroll position asks for. */
+    function readPos() {
+      if (swipeMode) return step > 0 ? clamp(stage.scrollLeft / step, 0, count - 1) : 0;
+      return drumAngle(navH - track.getBoundingClientRect().top, distance, count);
     }
-  }
-  const toggleFlip = (i, focus) => setFlipped(i, flippedIndex !== i, focus);
 
-  flips.forEach((f, i) => {
-    f.backBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      setFlipped(i, false, true);
-    });
-    f.card.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && flippedIndex === i) setFlipped(i, false, true);
-    });
-  });
+    /** Page scroll offset at which card `i` is in front (laptop). */
+    const cardScrollTop = (i) =>
+      track.getBoundingClientRect().top + window.scrollY - navH + (i / (count - 1)) * distance;
 
-  // ----- Geometry, position and state -----
-  const mobileMQ = window.matchMedia('(max-width: 1023.98px), (pointer: coarse)');
-  let swipeMode = mobileMQ.matches;       // phones and tablets: sideways swiping instead of pinning
-  let navH = 0;
-  let stageH = 0;
-  let stageW = 0;
-  let cardW = 0;
-  let cardH = 0;
-  let step = 0;                           // phone: px of sideways travel per card
-  let distance = 0;                       // laptop: px of page scroll while the section is pinned
-  let pinStart = 0;                       // laptop: page scroll offset where the pin begins
-  let maxScroll = 1;                      // laptop: page scroll range, for the timeline offsets
-  let drumBase = '';                      // transform the drum always carries (phone: perspective)
-  let pos = 0;                            // card position the scroll position asks for
-  let reveal = PD_START;                  // roll-in offset, used by the script-driven fallback
-  let revealing = false;
-  let rafId = 0;
-  let scrollingUntil = 0;                 // time until which a scroll is considered in progress
-  let anims = [];                         // scroll-linked animations (empty: script-driven fallback)
-  let useTimeline = typeof window.ScrollTimeline === 'function';
-  let signature = '';
-
-  // What was last written to each card, so an unchanged value is never written again
-  const view = cards.map(() => ({ opacity: '', visible: null, pointer: null, front: null, shade: '' }));
-
-  const geometry = () => (swipeMode
-    ? { radius: PD_RADIUS_M, gap: PD_GAP_M }
-    : { radius: PD_RADIUS, gap: PD_GAP });
-
-  /** Transform of a card at a drum placement (card centre on the drum centre, then offset). */
-  const cardTransform = (p) =>
-    `translate3d(${(p.x * cardW - cardW / 2).toFixed(1)}px, ${(-cardH / 2).toFixed(1)}px, ${(p.z * cardW).toFixed(1)}px) rotateY(${p.ry.toFixed(4)}rad)`;
-
-  /** Card position (0 .. count-1) the scroll position asks for. */
-  function readPos() {
-    if (swipeMode) return step > 0 ? clamp(stage.scrollLeft / step, 0, count - 1) : 0;
-    return drumDetent(drumAngle(navH - track.getBoundingClientRect().top, distance, count));
-  }
-
-  /** Page scroll offset at which card `i` is in front (laptop). */
-  const cardScrollTop = (i) =>
-    track.getBoundingClientRect().top + window.scrollY - navH + (i / (count - 1)) * distance;
-
-  function cancelAnimations() {
-    anims.forEach((a) => { try { a.cancel(); } catch (err) { /* already cancelled */ } });
-    anims = [];
-  }
-
-  /**
-   * Tie every card (and its shading) to the scroll position. Keyframes sample the drum's whole
-   * travel, a few per card, and the compositor interpolates between them. Returns false when
-   * the browser cannot do it, which leaves the script-driven fallback in charge.
-   */
-  function buildAnimations() {
-    cancelAnimations();
-    if (!useTimeline || typeof cards[0].animate !== 'function') return;
-    try {
-      const timeline = swipeMode
-        ? new window.ScrollTimeline({ source: stage, axis: 'inline' })
-        : new window.ScrollTimeline({ source: document.scrollingElement, axis: 'block' });
-      const { radius, gap } = geometry();
-      const samples = drumSamples(count, swipeMode ? 0 : PD_DETENT);
-      // Phone: travel 0..1 is the stage's own scroll range. Laptop: only part of the page scroll.
-      const offsetOf = (u) => clamp(swipeMode ? u : (pinStart + u * distance) / maxScroll, 0, 1);
-      const options = { timeline, fill: 'both', easing: 'linear' };
-      const made = [];
-
-      cards.forEach((card, i) => {
-        const frames = [];
-        const shade = [];
-        samples.forEach(({ u, pos: at }) => {
-          const p = drumPlace(i - at, radius, gap, PD_SHADE);
-          const offset = offsetOf(u);
-          frames.push({ offset, transform: cardTransform(p), opacity: p.fade.toFixed(3) });
-          shade.push({ offset, opacity: p.shade.toFixed(3) });
-        });
-        if (!swipeMode) {
-          // Hold the end positions outside the pinned stretch of the page
-          [frames, shade].forEach((list) => {
-            if (list[0].offset > 0) list.unshift(Object.assign({}, list[0], { offset: 0 }));
-            if (list[list.length - 1].offset < 1) list.push(Object.assign({}, list[list.length - 1], { offset: 1 }));
-          });
-        }
-        made.push(card.animate(frames, options));
-        flips[i].shades.forEach((el) => made.push(el.animate(shade, options)));
-      });
-
-      // A browser that ignores the timeline option would play these as one instant animation
-      if (made.some((a) => a.timeline !== timeline)) {
-        made.forEach((a) => a.cancel());
-        useTimeline = false;
+    /** One frame: read the scroll position, move the spring (laptop), draw. */
+    function frame(now) {
+      rafId = 0;
+      const t = typeof now === 'number' ? now : performance.now();
+      const dt = Math.min(0.05, last ? (t - last) / 1000 : 1 / 60);
+      last = t;
+      const raw = readPos();
+      const box = stage.getBoundingClientRect();
+      if (!revealing && (box.bottom < 0 || box.top > window.innerHeight)) {
+        // Off screen: keep the state in step with the scroll, draw nothing
+        current = target = prevRaw = pos = raw;
+        speed = 0;
+        last = 0;
         return;
       }
-      anims = made;
-      // The animations own these now; drop anything the fallback wrote inline
-      cards.forEach((card, i) => {
-        card.style.transform = '';
-        card.style.opacity = '';
-        flips[i].shades.forEach((el) => { el.style.opacity = ''; });
-        view[i].opacity = '';
-        view[i].shade = '';
-      });
-    } catch (err) {
-      cancelAnimations();
-      useTimeline = false;
-    }
-  }
-
-  /**
-   * Bring the per-card state in line with the scroll position: which card is in front, which
-   * can be hit, which are hidden. Values are only written when they change. In the fallback
-   * path the cards are placed here too.
-   */
-  function sync() {
-    rafId = 0;
-    pos = readPos();
-    const scripted = anims.length === 0;
-    const eff = pos + (scripted ? reveal : 0);
-    const { radius, gap } = geometry();
-    for (let i = 0; i < count; i++) {
-      const card = cards[i];
-      const v = view[i];
-      const p = drumPlace(i - eff, radius, gap, PD_SHADE);
-      const visible = p.fade > 0.001 || (revealing && !scripted);
-      if (scripted && visible) {
-        card.style.transform = cardTransform(p);
-        const opacity = p.fade.toFixed(3);
-        if (opacity !== v.opacity) { card.style.opacity = opacity; v.opacity = opacity; }
-        const shade = p.shade.toFixed(3);
-        if (shade !== v.shade) {
-          v.shade = shade;
-          flips[i].shades.forEach((el) => { el.style.opacity = shade; });
-        }
-      }
-      if (visible !== v.visible) { card.style.visibility = visible ? '' : 'hidden'; v.visible = visible; }
-      // Front card is interactive; visible neighbours can be clicked to bring them to the front
-      const front = Math.abs(i - eff) < 0.5;
-      if (front !== v.front) { card.classList.toggle('is-front', front); v.front = front; }
-      // Only the front card can be flipped: turn it back when another card rolls to the front
-      if (!front && flippedIndex === i) setFlipped(i, false);
-      const pointer = Math.abs(i - eff) < 1.6 ? '' : 'none';
-      if (pointer !== v.pointer) { card.style.pointerEvents = pointer; v.pointer = pointer; }
-    }
-  }
-
-  const schedule = () => { if (!rafId) rafId = requestAnimationFrame(sync); };
-
-  function layout() {
-    navH = header ? header.offsetHeight : 0;
-    section.classList.toggle('pd-swipe', swipeMode);
-    stageH = stage.clientHeight;
-    stageW = stage.clientWidth;
-    cardW = cards[0].offsetWidth;
-    cardH = cards[0].offsetHeight;
-    if (swipeMode) {
-      step = Math.max(1, Math.round(cardW * PD_SWIPE_STEP));
-      distance = 0;
-      pinStart = 0;
-      maxScroll = 1;
-      track.style.height = '';
-      stage.style.perspective = '';
-      drumBase = `perspective(${Math.round(cardW * PD_PERSPECTIVE_M)}px)`;
-      rail.style.width = `${stageW + (count - 1) * step}px`;
-      drum.style.width = `${stageW}px`;
-      snaps.forEach((snap, i) => {
-        snap.style.left = `${i * step}px`;
-        snap.style.width = `${step}px`;
-      });
-    } else {
-      step = 0;
-      distance = (count - 1) * stageH * PD_SCROLL_PER_CARD;
-      track.style.height = `${Math.round(stageH + distance)}px`;
-      stage.style.perspective = `${Math.round(cardW * PD_RADIUS * 3)}px`;
-      drumBase = '';
-      rail.style.width = '';
-      drum.style.width = '';
-      pinStart = track.getBoundingClientRect().top + window.scrollY - navH;
-      maxScroll = Math.max(1, root.scrollHeight - window.innerHeight);
-    }
-    drum.style.transform = drumBase;
-    // Rebuild the scroll-linked animations only when something they depend on has changed
-    const next = [swipeMode, stageW, stageH, cardW, cardH, step, Math.round(pinStart), maxScroll].join('|');
-    if (next !== signature) {
-      signature = next;
-      buildAnimations();
-    }
-  }
-
-  const onResize = () => { layout(); sync(); };
-  const onPageScroll = () => {
-    if (swipeMode) return;
-    scrollingUntil = performance.now() + 160;
-    schedule();
-  };
-  const onStageScroll = () => {
-    if (!swipeMode) return;
-    scrollingUntil = performance.now() + 160;
-    schedule();
-  };
-
-  // ----- Roll-in on first view -----
-  function playReveal() {
-    let done = false;
-    let headingAnim = null;
-    const t0 = performance.now();
-
-    const finish = () => {
-      if (done) return;
-      done = true;
-      revealing = false;
-      reveal = 0;
-      try { if (headingAnim) headingAnim.cancel(); } catch (err) { /* already cancelled */ }
-      section.classList.remove('pd-pending');
-      sync();
-    };
-
-    try {
-      revealing = true;
-      section.classList.remove('pd-pending');
-      headingAnim = drumReveal(heading, { from: -80, to: 0 });
-      if (anims.length) {
-        // Turn the whole drum about its axis (one drum radius behind the front card) and fade in
-        const { radius, gap } = geometry();
-        const axis = radius * cardW;
-        const spin = (a) => `${drumBase} translateZ(${-axis}px) rotateY(${a}rad) translateZ(${axis}px)`;
-        const from = (-PD_START * (1 + gap)) / radius;
-        const roll = drum.animate(
-          [{ transform: spin(from) }, { transform: spin(0) }],
-          { duration: REVEAL_MS, easing: DRUM_EASING }
-        );
-        stage.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 350, easing: 'ease-out' });
-        roll.onfinish = finish;
-        roll.oncancel = finish;
+      let moving = false;
+      if (swipeMode) {
+        speed = (raw - prevRaw) / dt;
+        prevRaw = raw;
+        pos = raw;
+        moving = Math.abs(speed) > 0.02;
       } else {
+        // Once the visitor has stopped scrolling the drum glides on to the nearest card. Only the
+        // drum does: the page scroll position stays exactly where the visitor left it.
+        target = t - lastScroll > PD_SETTLE_MS ? Math.round(raw) : raw;
+        const before = current;
+        current += (target - current) * (1 - Math.exp(-PD_STIFFNESS * dt));
+        if (Math.abs(target - current) < 0.0005) current = target;
+        speed = (current - before) / dt;
+        pos = current;
+        moving = current !== target;
+      }
+      if (!moving) speed = 0; // sharp as soon as it has stopped
+      drum.render(pos + reveal, speed);
+      if (detailIndex >= 0 && frontIndex() !== detailIndex) closeDetail(false);
+      if (moving || revealing) schedule();
+      else last = 0;
+    }
+
+    const schedule = () => { if (!rafId) rafId = requestAnimationFrame(frame); };
+
+    function layout() {
+      navH = header ? header.offsetHeight : 0;
+      section.classList.toggle('pd-swipe', swipeMode);
+      stageW = stage.clientWidth;
+      stageH = stage.clientHeight;
+      if (swipeMode) {
+        canvas.style.width = `${stageW}px`;
+        track.style.height = '';
+        distance = 0;
+      } else {
+        canvas.style.width = '';
+        distance = (count - 1) * stageH * PD_SCROLL_PER_CARD;
+        track.style.height = `${Math.round(stageH + distance)}px`;
+      }
+      drum.resize(stageW, stageH);
+      if (swipeMode) {
+        step = Math.max(1, Math.round(drum.cardWidth() * PD_SWIPE_STEP));
+        rail.style.width = `${stageW + (count - 1) * step}px`;
+        snaps.forEach((snap, i) => {
+          snap.style.left = `${i * step}px`;
+          snap.style.width = `${step}px`;
+        });
+      } else {
+        step = 0;
+        rail.style.width = '';
+      }
+      if (detailIndex >= 0) placeDetail();
+    }
+
+    const onResize = () => { layout(); frame(); };
+    const onPageScroll = () => {
+      if (swipeMode) return;
+      lastScroll = performance.now();
+      // Wake up again once the scroll has been still long enough for the drum to settle
+      clearTimeout(settleTimer);
+      settleTimer = setTimeout(schedule, PD_SETTLE_MS + 30);
+      schedule();
+    };
+    const onStageScroll = () => { if (swipeMode) schedule(); };
+
+    // ----- Details panel -----
+    function placeDetail() {
+      const f = drum.frame();
+      const shiftX = swipeMode ? stage.scrollLeft : 0;
+      detail.style.width = `${Math.round(f.w)}px`;
+      detail.style.height = `${Math.round(f.h)}px`;
+      detail.style.left = `${Math.round(shiftX + f.x - f.w / 2)}px`;
+      detail.style.top = `${Math.round(f.y - f.h / 2)}px`;
+    }
+
+    function openDetail(i) {
+      const source = cards[i];
+      detailIndex = i;
+      detail.textContent = '';
+      const back = document.createElement('button');
+      back.type = 'button';
+      back.className = 'pd-back-btn';
+      back.textContent = '\u21ba Back';
+      back.setAttribute('aria-label', `Hide details for ${items[i].title}`);
+      back.addEventListener('click', () => closeDetail(true));
+      const title = source.querySelector('h3').cloneNode(true);
+      title.removeAttribute('id');
+      title.className = 'pd-detail-title';
+      detail.setAttribute('aria-label', `${items[i].title} details`);
+      detail.append(back, title);
+      Array.from(source.children)
+        .filter((el) => el.matches('.project-badge, .project-desc, .project-tech, .project-links, .project-link'))
+        .forEach((el) => detail.appendChild(el.cloneNode(true)));
+      placeDetail();
+      detail.classList.add('is-open');
+      // A phone's sideways scroll is locked while the panel is open, so the card stays put
+      if (swipeMode) stage.style.overflowX = 'hidden';
+      detail.animate(
+        [{ opacity: 0, transform: 'scale(0.94)' }, { opacity: 1, transform: 'scale(1)' }],
+        { duration: 450, easing: DRUM_EASING }
+      );
+      back.focus({ preventScroll: true });
+    }
+
+    function closeDetail(returnFocus) {
+      if (detailIndex < 0) return;
+      const i = detailIndex;
+      detailIndex = -1;
+      detail.classList.remove('is-open');
+      detail.textContent = '';
+      stage.style.overflowX = '';
+      if (returnFocus) buttons[i].focus({ preventScroll: true });
+    }
+
+    // ----- Roll-in on first view -----
+    function playReveal() {
+      let done = false;
+      const t0 = performance.now();
+      const finish = () => {
+        if (done) return;
+        done = true;
+        revealing = false;
+        reveal = 0;
+        try { if (headingAnim) headingAnim.cancel(); } catch (err) { /* already cancelled */ }
+        section.classList.remove('pd-pending');
+        frame();
+      };
+      let headingAnim = null;
+      try {
+        revealing = true;
+        section.classList.remove('pd-pending');
+        headingAnim = drumReveal(heading, { from: -80, to: 0 });
+        stage.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 350, easing: 'ease-out' });
         const stepReveal = (now) => {
           if (done) return;
           const p = clamp((now - t0) / REVEAL_MS, 0, 1);
           reveal = PD_START * (1 - easeInOutCubic(p));
-          schedule();
+          frame(now);
           if (p >= 1) { finish(); return; }
           requestAnimationFrame(stepReveal);
         };
         requestAnimationFrame(stepReveal);
+        setTimeout(finish, REVEAL_MS + 1500);
+      } catch (err) {
+        // Never leave the drum hidden
+        finish();
       }
-      setTimeout(finish, REVEAL_MS + 1500);
-    } catch (err) {
-      // Never leave the drum hidden
-      finish();
     }
-  }
 
-  // ----- Navigation -----
-  /** Scroll so card `i` is in front. The drum follows the scroll; nothing else moves it. */
-  function goTo(i, smooth) {
-    const behavior = smooth ? 'smooth' : 'instant';
-    try {
-      if (swipeMode) stage.scrollTo({ left: i * step, top: 0, behavior });
-      else window.scrollTo({ top: cardScrollTop(i), left: 0, behavior });
-    } catch (err) {
-      if (swipeMode) stage.scrollLeft = i * step;
-      else window.scrollTo(0, cardScrollTop(i));
+    // ----- Navigation and input -----
+    /** Scroll so card `i` is in front. The drum follows the scroll; nothing else moves it. */
+    function goTo(i, smooth) {
+      const behavior = smooth ? 'smooth' : 'instant';
+      try {
+        if (swipeMode) stage.scrollTo({ left: i * step, top: 0, behavior });
+        else window.scrollTo({ top: cardScrollTop(i), left: 0, behavior });
+      } catch (err) {
+        if (swipeMode) stage.scrollLeft = i * step;
+        else window.scrollTo(0, cardScrollTop(i));
+      }
+      lastScroll = performance.now();
+      schedule();
     }
-    schedule();
-  }
 
-  // Click a side card: roll it to the front. Click the front card: flip it.
-  // Clicks on links/buttons on the back face do their own thing.
-  stage.addEventListener('click', (e) => {
-    const card = e.target.closest('.project-card');
-    if (!card) return;
-    const i = cards.indexOf(card);
-    if (!card.classList.contains('is-front')) {
-      e.preventDefault();
-      goTo(i, true);
-      return;
-    }
-    if (e.target.closest('a, .pd-back-btn')) return;
-    // On the back, only a click on empty space flips back (text stays selectable)
-    if (flippedIndex === i && e.target.closest('.project-desc, .project-tech')) return;
-    toggleFlip(i, e.detail === 0); // keyboard-activated toggle button: move focus to the new face
-  });
+    // Click the front card to open its details, a side card to roll it forward, anywhere else to
+    // close the panel. The cards are pixels, so the click is matched to a card by its position.
+    stage.addEventListener('click', (e) => {
+      // The path is fixed when the click starts, so it still names the panel after Back has emptied it
+      const path = e.composedPath();
+      if (path.includes(detail) || path.includes(controls)) return;
+      const i = drum.hitTest(e.clientX, e.clientY);
+      if (detailIndex >= 0) closeDetail(false);
+      if (i < 0) return;
+      if (i === frontIndex()) openDetail(i);
+      else goTo(i, true);
+    });
 
-  // Keyboard: focusing a side card's toggle turns the drum to it
-  stage.addEventListener('focusin', (e) => {
-    const card = e.target.closest('.project-card');
-    if (card && !card.classList.contains('is-front')) goTo(cards.indexOf(card), false);
-  });
+    stage.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && detailIndex >= 0) closeDetail(true);
+    });
 
-  // ----- Hover tilt, lift and glare on the front card (mouse only) -----
-  // The handler only records the pointer; one frame callback then reads the card's box and
-  // writes, so a fast mouse costs at most one style update per frame. Tilt waits while the
-  // drum is turning: the card under the pointer is moving, and redrawing the glare every frame
-  // would only add cost.
-  let tilted = null;
-  let tiltPoint = null;
-  let tiltRaf = 0;
-  const resetTilt = () => {
-    tiltPoint = null;
-    if (!tilted) return;
-    tilted.style.removeProperty('--tx');
-    tilted.style.removeProperty('--ty');
-    tilted.style.removeProperty('--lift');
-    tilted.style.removeProperty('--sheen');
-    tilted = null;
-  };
-  const applyTilt = () => {
-    tiltRaf = 0;
-    const pt = tiltPoint;
-    if (!pt) return;
-    if (performance.now() < scrollingUntil || revealing) { resetTilt(); return; }
-    const card = pt.target.closest('.project-card.is-front');
-    const f = card && flips.find((x) => x.card === card);
-    if (!f) { resetTilt(); return; }
-    if (tilted && tilted !== f.tilt) resetTilt();
-    tilted = f.tilt;
-    tiltPoint = pt;
-    const r = card.getBoundingClientRect();
-    const px = clamp((pt.x - r.left) / r.width, 0, 1);
-    const py = clamp((pt.y - r.top) / r.height, 0, 1);
-    f.tilt.style.setProperty('--tx', `${((0.5 - py) * 2 * PD_TILT_MAX).toFixed(2)}deg`);
-    f.tilt.style.setProperty('--ty', `${((px - 0.5) * 2 * PD_TILT_MAX).toFixed(2)}deg`);
-    f.tilt.style.setProperty('--gx', `${(px * 100).toFixed(1)}%`);
-    f.tilt.style.setProperty('--gy', `${(py * 100).toFixed(1)}%`);
-    f.tilt.style.setProperty('--lift', '1.03');
-    f.tilt.style.setProperty('--sheen', '1');
-  };
-  stage.addEventListener('pointermove', (e) => {
-    if (e.pointerType !== 'mouse') return;
-    tiltPoint = { x: e.clientX, y: e.clientY, target: e.target };
-    if (!tiltRaf) tiltRaf = requestAnimationFrame(applyTilt);
-  });
-  stage.addEventListener('pointerleave', resetTilt);
+    // A pointer over a card shows the pointer cursor (mouse only)
+    let hover = null;
+    let hoverRaf = 0;
+    stage.addEventListener('pointermove', (e) => {
+      if (e.pointerType !== 'mouse') return;
+      hover = { x: e.clientX, y: e.clientY, panel: !!e.target.closest('.pd-detail') };
+      if (hoverRaf) return;
+      hoverRaf = requestAnimationFrame(() => {
+        hoverRaf = 0;
+        stage.style.cursor = hover && !hover.panel && drum.hitTest(hover.x, hover.y) >= 0 ? 'pointer' : '';
+      });
+    });
+    stage.addEventListener('pointerleave', () => { hover = null; stage.style.cursor = ''; });
 
-  const onModeChange = () => {
-    swipeMode = mobileMQ.matches;
-    stage.scrollLeft = 0;
-    signature = '';
+    const onModeChange = () => {
+      closeDetail(false);
+      swipeMode = mobileMQ.matches;
+      stage.scrollLeft = 0;
+      layout();
+      current = target = prevRaw = readPos();
+      frame();
+    };
+    if (mobileMQ.addEventListener) mobileMQ.addEventListener('change', onModeChange);
+    else if (mobileMQ.addListener) mobileMQ.addListener(onModeChange);
+
     layout();
-    sync();
-  };
-  if (mobileMQ.addEventListener) mobileMQ.addEventListener('change', onModeChange);
-  else if (mobileMQ.addListener) mobileMQ.addListener(onModeChange);
+    current = target = prevRaw = readPos();
+    frame();
+    window.addEventListener('scroll', onPageScroll, { passive: true });
+    stage.addEventListener('scroll', onStageScroll, { passive: true });
+    window.addEventListener('resize', onResize);
+    window.addEventListener('load', onResize);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(onResize);
 
-  layout();
-  sync();
-  window.addEventListener('scroll', onPageScroll, { passive: true });
-  stage.addEventListener('scroll', onStageScroll, { passive: true });
-  window.addEventListener('resize', onResize);
-  window.addEventListener('load', onResize);
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(onResize);
-  // Anything above the section changing height moves the pin; keep the animations in step
-  if (typeof ResizeObserver === 'function') {
-    let pending = false;
-    new ResizeObserver(() => {
-      if (pending) return;
-      pending = true;
-      requestAnimationFrame(() => { pending = false; onResize(); });
-    }).observe(document.body);
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries.some((e) => e.isIntersecting)) return;
+      observer.disconnect();
+      playReveal();
+    }, { rootMargin: '0px 0px -20% 0px', threshold: 0.2 });
+    observer.observe(stage);
   }
-
-  const observer = new IntersectionObserver((entries) => {
-    if (!entries.some((e) => e.isIntersecting)) return;
-    observer.disconnect();
-    playReveal();
-  }, { rootMargin: '0px 0px -20% 0px', threshold: 0.2 });
-  observer.observe(stage);
 }
 
 /**
@@ -1092,7 +910,7 @@ if (typeof document !== 'undefined') {
 // Expose pure helpers for Node-based unit tests
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    clamp, drumAngle, drumDetent, drumSamples, drumPlace,
+    clamp, drumAngle, drumPlace,
     faceHeight, easeInOutCubic, blurAmount, faceShade, shadowOffset
   };
 }
