@@ -491,23 +491,60 @@ section { scroll-margin-top: var(--nav-h); }
 .achievements { padding: 6rem 1.5rem; }
 .achievements { background: var(--bg-alt); }
 
-/* Animated subtle grid background on skills section */
+/* ── Animated scanning-grid background ── */
 .skills {
   position: relative;
+  overflow: hidden;
+}
+/* Both layers move with transform only, so the browser animates them on the GPU and the section is
+   never repainted. The grid is one tile larger than the section; sliding it by exactly one tile
+   loops without a seam. */
+.skills::before {
+  content: '';
+  position: absolute;
+  inset: -3.5rem 0 0 -3.5rem;
   background-image:
-    linear-gradient(rgba(201, 164, 106, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(201, 164, 106, 0.04) 1px, transparent 1px);
-  background-size: 4rem 4rem;
-  animation: grid-drift 20s linear infinite;
+    linear-gradient(rgba(201, 164, 106, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(201, 164, 106, 0.055) 1px, transparent 1px);
+  background-size: 3.5rem 3.5rem;
+  animation: sg-grid 18s linear infinite;
+  will-change: transform;
+  z-index: 0;
+  pointer-events: none;
 }
-@keyframes grid-drift {
-  from { background-position: 0 0, 0 0; }
-  to   { background-position: 4rem 4rem, 4rem 4rem; }
+/* Horizontal scan line sweeping down. The element is as tall as the section, starts one section
+   height above it, and carries the line on its bottom edge; translateY(100%) moves it one full
+   section height. */
+.skills::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  top: -100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(201, 164, 106, 0.55), transparent) bottom / 100% 3px no-repeat;
+  animation: sg-scan 5s linear infinite;
+  will-change: transform, opacity;
+  z-index: 0;
+  pointer-events: none;
 }
+@keyframes sg-grid {
+  from { transform: translate(0, 0); }
+  to   { transform: translate(3.5rem, 3.5rem); }
+}
+@keyframes sg-scan {
+  from { transform: translateY(0); opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  to   { transform: translateY(100%); opacity: 0; }
+}
+.skills .section-inner { position: relative; z-index: 1; }
+
 @media (prefers-reduced-motion: reduce) {
-  .skills { animation: none; }
+  .skills::before,
+  .skills::after { animation: none; }
 }
 
+/* ── Skills grid cards ── */
 .section-inner {
   max-width: var(--max-w);
   margin: 0 auto;
@@ -515,18 +552,138 @@ section { scroll-margin-top: var(--nav-h); }
 
 .skills-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr)); /* equal columns whatever the chips hold */
   gap: 2rem;
 }
 
+/* ── Skill group card: glowing orbiting border ── */
 .skill-group {
-  padding: 1.5rem;
+  position: relative;
+  padding: 2rem 1.75rem 1.75rem;
   background: var(--bg-alt);
+  border-radius: 1.25rem;
+  overflow: hidden;
+  isolation: isolate;
+  /* Static fallback border */
   border: 1px solid var(--border);
-  border-radius: 1rem;
+  transition: transform 0.35s cubic-bezier(0.22,1,0.36,1),
+              box-shadow 0.35s cubic-bezier(0.22,1,0.36,1);
 }
-.skill-group h3 { color: var(--accent); margin-bottom: 1rem; }
 
+/* Conic-gradient border ring, drawn just inside the card's own border (the card clips overflow, so
+   a ring outside it would be cut off). It rests as a faint arc, and spins only while the card is
+   hovered or focused: a spinning @property angle repaints the card every frame, so it must not
+   run on all four cards forever. */
+.skill-group::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  background: conic-gradient(
+    from var(--sg-angle, 0deg),
+    transparent 0%,
+    var(--accent) 15%,
+    rgba(201,164,106,0.3) 30%,
+    transparent 45%,
+    transparent 100%
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: sg-spin 4s linear infinite paused;
+  opacity: 0.5;
+  transition: opacity 0.4s;
+  z-index: -1;
+}
+.skill-group:hover::before,
+.skill-group:focus-within::before {
+  opacity: 1;
+  animation-play-state: running;
+}
+/* Inner glow that pulses */
+.skill-group::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(ellipse at 50% 0%, rgba(201,164,106,0.08), transparent 65%);
+  z-index: -1;
+  transition: opacity 0.4s;
+  opacity: 0;
+}
+.skill-group:hover::after { opacity: 1; }
+
+@property --sg-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+@keyframes sg-spin {
+  to { --sg-angle: 360deg; }
+}
+
+/* Stagger each card's animation start */
+.sg-languages  { --sg-delay: 0s; }
+.sg-frameworks { --sg-delay: 1s; }
+.sg-tools      { --sg-delay: 2s; }
+.sg-soft       { --sg-delay: 3s; }
+.skill-group::before { animation-delay: calc(var(--sg-delay, 0s) * -1); } /* different resting angle per card */
+
+.skill-group:hover {
+  transform: translateY(-6px);
+  box-shadow:
+    0 0 0 1px rgba(201,164,106,0.5),
+    0 0 30px rgba(201,164,106,0.15),
+    0 12px 36px rgba(0,0,0,0.35);
+}
+
+/* ── Skill group icon ── */
+.sg-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  margin-bottom: 1rem;
+  color: var(--accent);
+  opacity: 0.85;
+  transition: opacity 0.3s, transform 0.4s cubic-bezier(0.22,1,0.36,1);
+}
+.sg-icon svg { width: 100%; height: 100%; }
+.skill-group:hover .sg-icon {
+  opacity: 1;
+  transform: scale(1.15) rotate(-5deg);
+}
+
+/* ── Orbiting dot ── */
+.sg-orbit {
+  position: absolute;
+  top: 1.1rem;
+  right: 1.1rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  animation: sg-orbit-spin 6s linear infinite;
+  animation-delay: var(--sg-delay, 0s);
+}
+.sg-orbit-dot {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent), 0 0 16px rgba(201,164,106,0.5);
+}
+@keyframes sg-orbit-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.skill-group h3 { color: var(--accent); margin-bottom: 1rem; font-size: 1.1rem; }
+
+/* ── Chips ── */
 .chips {
   list-style: none;
   margin: 0;
@@ -536,11 +693,42 @@ section { scroll-margin-top: var(--nav-h); }
   gap: 0.6rem;
 }
 .chips li {
+  position: relative;
   padding: 0.4rem 0.9rem;
-  border: 1px solid rgba(201, 164, 106, 0.45);
+  border: 1px solid rgba(201, 164, 106, 0.4);
   border-radius: 999px;
   font-size: 0.9375rem;
   font-weight: 500;
+  overflow: hidden;
+  transition: color 0.25s, border-color 0.25s, box-shadow 0.25s, transform 0.25s;
+  cursor: default;
+}
+/* Shimmer sweep */
+.chips li::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg,
+    transparent 35%,
+    rgba(201,164,106,0.22) 50%,
+    transparent 65%);
+  transform: translateX(-120%);
+  transition: transform 0.5s ease;
+}
+.chips li:hover::before { transform: translateX(120%); }
+.chips li:hover {
+  color: var(--accent);
+  border-color: rgba(201,164,106,0.9);
+  box-shadow: 0 0 10px rgba(201,164,106,0.3), inset 0 0 10px rgba(201,164,106,0.05);
+  transform: translateY(-2px) scale(1.04);
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .skill-group::before { animation: none; }
+  .sg-orbit            { animation: none; }
+  .skill-group         { transition: none; }
+  .chips li::before    { transition: none; }
 }
 
 .achievement-list {
@@ -778,20 +966,43 @@ section { scroll-margin-top: var(--nav-h); }
 .contact {
   padding: 6rem 1.5rem;
   position: relative;
+  overflow: hidden;
 }
-/* Soft radial glow behind contact section */
+
+/* Animated radial orbs in background */
 .contact::before {
   content: '';
   position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(ellipse at 20% 60%, rgba(201, 164, 106, 0.06), transparent 60%),
-    radial-gradient(ellipse at 80% 30%, rgba(184, 179, 168, 0.04), transparent 55%);
+  width: 40rem; height: 40rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(201,164,106,0.07) 0%, transparent 65%);
+  top: -10rem; left: -10rem;
+  animation: cc-orb-a 12s ease-in-out infinite alternate;
   pointer-events: none;
   z-index: 0;
 }
+.contact::after {
+  content: '';
+  position: absolute;
+  width: 30rem; height: 30rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(184,179,168,0.05) 0%, transparent 65%);
+  bottom: -8rem; right: -6rem;
+  animation: cc-orb-b 15s ease-in-out infinite alternate;
+  pointer-events: none;
+  z-index: 0;
+}
+@keyframes cc-orb-a {
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(6rem, 4rem) scale(1.2); }
+}
+@keyframes cc-orb-b {
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(-4rem, -3rem) scale(1.15); }
+}
 .contact .section-inner { position: relative; z-index: 1; }
 
+/* ── Intro text ── */
 .contact-intro {
   max-width: 40rem;
   color: var(--muted);
@@ -799,34 +1010,224 @@ section { scroll-margin-top: var(--nav-h); }
   margin-bottom: 2.5rem;
 }
 
+/* ── Contact cards grid ── */
 .contact-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr)); /* equal columns whatever the text length */
   gap: 1.25rem;
 }
-.contact-list li {
-  padding: 1.25rem 1.5rem;
+
+/* ── Individual contact card ── */
+.contact-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  padding: 1.4rem 1.5rem;
   background: var(--bg-alt);
-  border: 1px solid var(--border);
-  border-radius: 0.75rem;
+  border-radius: 1rem;
   min-width: 0;
+  overflow: hidden;
+  isolation: isolate;
+  /* Static fallback border */
+  border: 1px solid var(--border);
+  transition:
+    transform 0.4s cubic-bezier(0.22,1,0.36,1),
+    box-shadow 0.4s cubic-bezier(0.22,1,0.36,1);
 }
+
+/* Conic border ring, drawn inside the card's own border (the card clips overflow, so a ring outside
+   it would be cut off). Spins only on hover or keyboard focus, then fades back out. */
+.contact-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  background: conic-gradient(
+    from var(--cc-angle, 0deg),
+    transparent 0%,
+    var(--accent) 12%,
+    rgba(201,164,106,0.25) 25%,
+    transparent 40%,
+    transparent 100%
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: cc-spin 5s linear infinite paused;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+.contact-card:hover::before,
+.contact-card:focus-within::before {
+  opacity: 1;
+  animation-play-state: running;
+}
+
+/* Noise/scan-line texture overlay on the card background */
+.contact-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(201,164,106,0.015) 2px,
+      rgba(201,164,106,0.015) 4px
+    );
+  pointer-events: none;
+  z-index: 0;
+}
+
+@property --cc-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+@keyframes cc-spin {
+  to { --cc-angle: 360deg; }
+}
+
+/* Stagger each card's conic start */
+.contact-card--email    { --cc-delay: 0s; }
+.contact-card--phone    { --cc-delay: 1.25s; }
+.contact-card--linkedin { --cc-delay: 2.5s; }
+.contact-card--github   { --cc-delay: 3.75s; }
+.contact-card::before { animation-delay: calc(var(--cc-delay, 0s) * -1); }
+
+.contact-card:hover,
+.contact-card:focus-within {
+  transform: translateY(-5px) scale(1.015);
+  box-shadow:
+    0 0 0 1px rgba(201,164,106,0.4),
+    0 0 28px rgba(201,164,106,0.15),
+    0 12px 36px rgba(0,0,0,0.4);
+}
+
+/* ── Icon circle ── */
+.cc-icon {
+  position: relative;
+  flex-shrink: 0;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background: rgba(201,164,106,0.1);
+  border: 1px solid rgba(201,164,106,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  transition: background 0.35s, border-color 0.35s, transform 0.4s cubic-bezier(0.22,1,0.36,1);
+  z-index: 1;
+}
+.cc-icon svg { width: 1.3rem; height: 1.3rem; }
+.contact-card:hover .cc-icon,
+.contact-card:focus-within .cc-icon {
+  background: rgba(201,164,106,0.2);
+  border-color: var(--accent);
+  transform: rotate(-8deg) scale(1.1);
+}
+
+/* Ping animation on icon */
+.cc-ping {
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(201,164,106,0.5);
+  animation: cc-ping 2.5s ease-out infinite;
+  animation-delay: var(--cc-delay, 0s);
+}
+@keyframes cc-ping {
+  0%   { transform: scale(0.9); opacity: 0.8; }
+  70%  { transform: scale(1.5); opacity: 0; }
+  100% { transform: scale(0.9); opacity: 0; }
+}
+
+/* ── Text body ── */
+.cc-body {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Arrow icon ── */
+/* Out of the flex flow, so the hidden arrow never takes width from the text. Shown on hover or focus
+   only, and not at all on touch screens, where there is no hover to reveal it. */
+.cc-arrow {
+  position: absolute;
+  top: 50%;
+  right: 1.25rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-top: -0.75rem;
+  color: var(--accent);
+  opacity: 0;
+  transform: translateX(-6px);
+  transition: opacity 0.3s, transform 0.3s cubic-bezier(0.22,1,0.36,1);
+  z-index: 1;
+}
+.cc-arrow svg { width: 100%; height: 100%; }
+.contact-card:hover .cc-arrow,
+.contact-card:focus-within .cc-arrow {
+  opacity: 1;
+  transform: translateX(0);
+}
+@media (hover: none) {
+  .cc-arrow { display: none; }
+}
+
+/* ── Label & link ── */
 .contact-label {
   display: block;
   color: var(--muted);
-  font-size: 0.8125rem;
-  font-weight: 500;
-  letter-spacing: 0.1em;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.2rem;
 }
 .contact-list a {
   font-size: 1.0625rem;
   font-weight: 500;
-  overflow-wrap: anywhere; /* long email/URLs never force horizontal scroll */
+  overflow-wrap: anywhere;
+  transition: color 0.25s;
+}
+.contact-card:hover .cc-body a { color: var(--accent); }
+/* Room for the arrow on the right, only where it can appear */
+@media (hover: hover) {
+  .contact-card .cc-body { padding-right: 2rem; }
+}
+
+/* ── Constellation behind the cards: a canvas JS draws into (js/animations.js) ── */
+.contact-bg-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.8;
+  -webkit-mask-image: radial-gradient(ellipse at 50% 50%, #000 35%, transparent 85%);
+  mask-image: radial-gradient(ellipse at 50% 50%, #000 35%, transparent 85%);
+}
+.contact-bg-canvas canvas { display: block; width: 100%; height: 100%; }
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .contact::before,
+  .contact::after   { animation: none; }
+  .contact-card::before { animation: none; }
+  .cc-ping          { animation: none; }
+  .contact-card     { transition: none; }
+  .cc-icon          { transition: none; }
 }
 
 /* ===== Footer ===== */
@@ -847,6 +1248,8 @@ section { scroll-margin-top: var(--nav-h); }
 @media (max-width: 767.98px) {
   .contact { padding: 4rem 1.25rem; }
   .contact-list { grid-template-columns: 1fr; }
+  .contact-card { padding: 1.1rem 1.25rem; gap: 0.9rem; }
+  .cc-icon { width: 2.5rem; height: 2.5rem; }
   .site-footer { flex-direction: column; text-align: center; }
 }
 
