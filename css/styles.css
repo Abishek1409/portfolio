@@ -368,6 +368,7 @@ section { scroll-margin-top: var(--nav-h); }
   height: 3px;
   margin-top: 0.75rem;
   background: var(--accent);
+  transform-origin: left center;
 }
 
 /* ===== About_Section + Background_Artwork ===== */
@@ -489,6 +490,23 @@ section { scroll-margin-top: var(--nav-h); }
 .skills,
 .achievements { padding: 6rem 1.5rem; }
 .achievements { background: var(--bg-alt); }
+
+/* Animated subtle grid background on skills section */
+.skills {
+  position: relative;
+  background-image:
+    linear-gradient(rgba(201, 164, 106, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(201, 164, 106, 0.04) 1px, transparent 1px);
+  background-size: 4rem 4rem;
+  animation: grid-drift 20s linear infinite;
+}
+@keyframes grid-drift {
+  from { background-position: 0 0, 0 0; }
+  to   { background-position: 4rem 4rem, 4rem 4rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skills { animation: none; }
+}
 
 .section-inner {
   max-width: var(--max-w);
@@ -757,7 +775,22 @@ section { scroll-margin-top: var(--nav-h); }
 .pd-pending .pd-stage { opacity: 0; }
 
 /* ===== Contact_Section ===== */
-.contact { padding: 6rem 1.5rem; }
+.contact {
+  padding: 6rem 1.5rem;
+  position: relative;
+}
+/* Soft radial glow behind contact section */
+.contact::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 20% 60%, rgba(201, 164, 106, 0.06), transparent 60%),
+    radial-gradient(ellipse at 80% 30%, rgba(184, 179, 168, 0.04), transparent 55%);
+  pointer-events: none;
+  z-index: 0;
+}
+.contact .section-inner { position: relative; z-index: 1; }
 
 .contact-intro {
   max-width: 40rem;
