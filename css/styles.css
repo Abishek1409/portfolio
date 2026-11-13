@@ -801,6 +801,13 @@ section { scroll-margin-top: var(--nav-h); }
   font-size: 1.0625rem;
 }
 
+.project-desc p { margin: 0; }
+.project-highlights {
+  margin: 0.6rem 0 0;
+  padding-left: 1.2rem;
+}
+.project-highlights li { margin-bottom: 0.35rem; }
+
 .project-tech { margin-bottom: 2rem; }
 
 .project-link { align-self: flex-start; margin-top: auto; }
@@ -904,13 +911,19 @@ section { scroll-margin-top: var(--nav-h); }
   flex-direction: column;
   gap: 0.6rem;
   padding: 1rem 1.25rem 1.25rem;
-  overflow: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(201, 164, 106, 0.55) transparent;
   border: 1px solid rgba(201, 164, 106, 0.5);
   border-radius: 1.25rem;
   background: var(--bg-alt);
   color: var(--text);
   box-shadow: 0 1.5rem 3rem rgba(0, 0, 0, 0.45);
 }
+.pd-detail::-webkit-scrollbar { width: 6px; }
+.pd-detail::-webkit-scrollbar-track { background: transparent; }
+.pd-detail::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(201, 164, 106, 0.55); }
 .pd-detail.is-open { display: flex; }
 .pd-detail-title {
   margin: 0;
@@ -935,17 +948,14 @@ section { scroll-margin-top: var(--nav-h); }
 .pd-back-btn:hover { color: var(--accent); border-color: var(--accent); }
 .pd-detail .project-badge { margin: 0; }
 .pd-detail .project-desc {
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 0 0 auto;
   max-width: none;
   margin: 0;
-  overflow: auto;           /* a very long description can still be scrolled, but shows no scrollbar */
-  scrollbar-width: none;
   color: var(--text);
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   line-height: 1.55;
 }
-.pd-detail .project-desc::-webkit-scrollbar { display: none; }
+.pd-detail .project-highlights { margin-top: 0.4rem; }
 .pd-detail .project-tech { margin: 0; gap: 0.35rem; }
 .pd-detail .project-tech li {
   padding: 0.2rem 0.6rem;
