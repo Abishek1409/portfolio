@@ -7,9 +7,9 @@
   --accent: #c9a46a;    /* ~8:1 on --bg */
   --border: rgba(242, 239, 233, 0.12);
   --nav-h: 4rem;
-  /* Athelas is used wherever it is installed (macOS / iOS ship it). Elsewhere, Crimson Pro is a
-     close free match loaded from Google Fonts, then Georgia. */
-  --font-head: 'Athelas', 'Crimson Pro', Georgia, serif;
+  /* Cinzel gives display headings the engraved Roman-serif character of the reference. */
+  --font-head: 'Cinzel', Georgia, serif;
+  /* Crimson Pro remains the readable body face. */
   --font-body: 'Athelas', 'Crimson Pro', Georgia, serif;
   --max-w: 72rem;
 }
@@ -259,10 +259,9 @@ section { scroll-margin-top: var(--nav-h); }
   gap: 1rem;
 }
 
-/* Text sits above the halftone sphere, which is wider than the photo column */
+/* Keep hero copy above visual effects. */
 .hero-text { position: relative; z-index: 2; }
 
-/* Photo column: the halftone sphere is centred on the photo and reaches past it on every side */
 .hero-visual {
   position: relative;
   z-index: 1;
@@ -277,17 +276,15 @@ section { scroll-margin-top: var(--nav-h); }
   z-index: 1;
   width: min(100%, 80vh, 40rem);
   overflow: hidden;
-  border: 2px solid #a53640;
   border-radius: 1.5rem;
 }
 
-.hero-photo::after {
-  content: "";
+.hero-halftone {
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(circle, rgba(200, 50, 64, 0.45) 0.75px, transparent 1px);
-  background-size: 5px 5px;
-  opacity: 0.2;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
 }
 
@@ -330,7 +327,7 @@ section { scroll-margin-top: var(--nav-h); }
     font-size: 1rem;
     line-height: 1.55;
     margin-bottom: 1.5rem;
-    /* A dark halo behind the letters keeps the sphere's dots from cutting through the words */
+    /* A dark halo keeps the hero's ambient particles from cutting through the words. */
     text-shadow: 0 0 0.35rem var(--bg), 0 0 0.8rem var(--bg), 0 0 1.2rem var(--bg);
   }
   .hero-ctas { grid-area: ctas; margin-top: 0.5rem; }
@@ -367,9 +364,11 @@ section { scroll-margin-top: var(--nav-h); }
   isolation: isolate;
   background-color: var(--bg-alt); /* fallback if the artwork fails to load */
   padding: 6rem 1.5rem;
+  view-timeline-name: --about-view;
+  view-timeline-axis: block;
 }
 
-/* Taller than the section so parallax movement never reveals an edge */
+/* The taller image layer gives its scroll-linked transform room to move without exposing edges. */
 .about-bg {
   position: absolute;
   left: 0;
@@ -377,14 +376,39 @@ section { scroll-margin-top: var(--nav-h); }
   top: -15%;
   height: 130%;
   z-index: -1;
-  background-image:
-    linear-gradient(rgba(5, 5, 10, 0.6), rgba(5, 5, 10, 0.7)),
-    url('../assets/creation-of-adam.jpeg');
-  /* contain shows the whole artwork instead of a stretched, cropped slice */
-  background-size: auto, contain;
-  background-position: center;
-  background-repeat: no-repeat;
+  overflow: hidden;
+}
+
+.about-bg img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  transform: translate3d(0, -10%, 0) scale(1);
   will-change: transform;
+}
+
+.about-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(rgba(5, 5, 10, 0.6), rgba(5, 5, 10, 0.7));
+  pointer-events: none;
+}
+
+@supports (animation-timeline: view()) {
+  .about-bg img {
+    animation: about-background-zoom-in linear both;
+    animation-timeline: --about-view;
+    animation-range: entry 0% exit 100%;
+  }
+}
+
+@keyframes about-background-zoom-in {
+  from { transform: translate3d(0, -10%, 0) scale(1); }
+  to { transform: translate3d(0, 10%, 0) scale(1.3); }
 }
 
 .about-inner {
@@ -463,6 +487,21 @@ section { scroll-margin-top: var(--nav-h); }
 @media (max-width: 767.98px) {
   .about { padding: 4rem 1.25rem; }
   .about-grid { grid-template-columns: 1fr; }
+  @supports (animation-timeline: view()) {
+    .about-bg img { animation-name: about-background-zoom-in-mobile; }
+  }
+}
+
+@keyframes about-background-zoom-in-mobile {
+  from { transform: translate3d(0, -5%, 0) scale(1); }
+  to { transform: translate3d(0, 5%, 0) scale(1.15); }
+}
+
+@supports not (animation-timeline: view()) {
+  .about-bg img {
+    transform: none;
+    will-change: auto;
+  }
 }
 
 /* Reduced motion: static artwork, no parallax transform */
@@ -470,7 +509,10 @@ section { scroll-margin-top: var(--nav-h); }
   .about-bg {
     top: 0;
     height: 100%;
-    transform: none !important;
+  }
+  .about-bg img {
+    animation: none !important;
+    transform: none;
     will-change: auto;
   }
 }

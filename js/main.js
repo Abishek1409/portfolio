@@ -71,57 +71,6 @@ function prefersReducedMotion() {
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-/**
- * Parallax for the About background. Moves `el` at 30% of the section's
- * offset from the viewport centre, throttled to one update per frame.
- */
-function initParallax(el) {
-  if (!el || prefersReducedMotion()) return;
-  const section = el.parentElement;
-  let ticking = false;
-
-  const update = () => {
-    ticking = false;
-    const rect = section.getBoundingClientRect();
-    // Skip work while the section is off screen
-    if (rect.bottom < 0 || rect.top > window.innerHeight) return;
-    const offset = rect.top + rect.height / 2 - window.innerHeight / 2;
-    // Layer overhangs the section by 15% on each side; never shift past that
-    const max = rect.height * 0.15;
-    const y = Math.max(-max, Math.min(max, offset * -0.3));
-    el.style.transform = `translate3d(0, ${y.toFixed(1)}px, 0)`;
-  };
-
-  const onScroll = () => {
-    if (!ticking) {
-      ticking = true;
-      requestAnimationFrame(update);
-    }
-  };
-
-  // Follow the scroll only while the section is near the screen. Everywhere else the handler
-  // would read the section's box on every scroll frame for nothing, and that read forces a
-  // style recalculation each time (it showed up in the Projects section's frame profile).
-  let listening = false;
-  const setListening = (on) => {
-    if (on === listening) return;
-    listening = on;
-    const method = on ? 'addEventListener' : 'removeEventListener';
-    window[method]('scroll', onScroll, { passive: true });
-    window[method]('resize', onScroll);
-    if (on) onScroll();
-  };
-
-  if (typeof IntersectionObserver === 'function') {
-    new IntersectionObserver((entries) => {
-      setListening(entries[entries.length - 1].isIntersecting);
-    }, { rootMargin: '10% 0px' }).observe(section);
-  } else {
-    setListening(true);
-  }
-  update();
-}
-
 /** Restrict `value` to the range [min, max]. */
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -883,14 +832,32 @@ function initTechText() {
   return instances;
 }
 
+/**
+ * Halftone lens over the portrait. The transparent canvas stays inactive until the pointer
+ * enters the image, so the portrait's original ASCII texture remains clear at rest.
+ */
+function initPhotoHalftone() {
+  const canvas = document.querySelector('.hero-halftone');
+  const photo = document.querySelector('.hero-photo');
+  if (!canvas || !photo || typeof window.createHalftone !== 'function') return null;
+  return window.createHalftone(canvas, {
+    host: photo,
+    color: '#f2efe9',
+    accent: '#a53640',
+    restAlpha: 0,
+    lensRadius: 250,
+    idle: false
+  });
+}
+
 if (typeof document !== 'undefined') {
   document.addEventListener('DOMContentLoaded', () => {
     // TechText on the hero name and section titles (mouse devices only; touch keeps plain text)
     initTechText();
+    initPhotoHalftone();
     // Runs once per load; anchor navigation never re-triggers it. Replay is the footer button.
     initDrumIntro({ replayBtn: document.querySelector('.replay-btn') }).play();
     initNav();
-    initParallax(document.querySelector('.about-bg'));
     initProjectsDrum();
   });
 }
