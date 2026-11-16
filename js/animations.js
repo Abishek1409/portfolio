@@ -178,14 +178,7 @@ function initCursorGlow() {
   }, { passive: true });
 }
 
-/* ─── 6. Hero photo animated ring ────────────────────────────────────────── */
-function initPhotoBorder() {
-  const photo = document.querySelector('.hero-photo img');
-  if (!photo) return;
-  photo.classList.add('photo-animated-ring');
-}
-
-/* ─── 7. Section title reveal underline ──────────────────────────────────── */
+/* ─── 6. Section title reveal underline ──────────────────────────────────── */
 function initTitleLines() {
   if (!('IntersectionObserver' in window)) return;
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -372,19 +365,6 @@ function injectStyles() {
   box-shadow: 0 1px 20px rgba(0,0,0,0.5);
 }
 
-/* ── Hero photo pulse ring ── */
-.photo-animated-ring {
-  animation: photo-pulse 4s ease-in-out infinite;
-}
-@keyframes photo-pulse {
-  0%,100% {
-    box-shadow: 0 0 0 2px var(--accent), 0 0 28px rgba(201,164,106,0.28), 0 0 60px rgba(201,164,106,0.08);
-  }
-  50% {
-    box-shadow: 0 0 0 3px var(--accent), 0 0 48px rgba(201,164,106,0.45), 0 0 90px rgba(201,164,106,0.15);
-  }
-}
-
 /* ── Section title reveal underline ── */
 .title-animate::after {
   transform: scaleX(0);
@@ -428,9 +408,8 @@ function injectStyles() {
   to { transform: translate(-50%, -50%) scale(28); opacity: 0; }
 }
 
-/* ── Reduced motion: disable photo pulse & title animate ── */
+/* ── Reduced motion: disable title animate ── */
 @media (prefers-reduced-motion: reduce) {
-  .photo-animated-ring { animation: none; }
   .title-animate::after { transition: none; transform: scaleX(1); }
   .achievement-list li.achievement-hover { transition: none; }
   .cc-ripple { animation: none; }
@@ -450,7 +429,6 @@ if (typeof document !== 'undefined') {
     initNavShrink();
     initAchievementTilt();
     initCursorGlow();
-    initPhotoBorder();
     initTitleLines();
     initSkillSpotlight();
     initContactRipple();

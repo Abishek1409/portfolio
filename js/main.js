@@ -883,22 +883,10 @@ function initTechText() {
   return instances;
 }
 
-/**
- * Halftone sphere behind the hero photo (see js/halftone.js). Pointer events are read from the
- * whole hero, so the dots react wherever the pointer is over it, including over the photo.
- */
-function initHalftone() {
-  const canvas = document.querySelector('.hero-halftone');
-  const hero = document.getElementById('hero');
-  if (!canvas || !hero || typeof window.createHalftone !== 'function') return null;
-  return window.createHalftone(canvas, { host: hero });
-}
-
 if (typeof document !== 'undefined') {
   document.addEventListener('DOMContentLoaded', () => {
     // TechText on the hero name and section titles (mouse devices only; touch keeps plain text)
     initTechText();
-    initHalftone();
     // Runs once per load; anchor navigation never re-triggers it. Replay is the footer button.
     initDrumIntro({ replayBtn: document.querySelector('.replay-btn') }).play();
     initNav();
