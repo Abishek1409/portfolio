@@ -7,14 +7,16 @@
   <title>Abishek T | Portfolio</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
   <script>document.documentElement.classList.remove('no-js'); document.documentElement.classList.add('js-intro');</script>
+  <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js" defer></script>
   <script src="js/tech-text.js" defer></script>
   <script src="js/halftone.js" defer></script>
   <script src="js/project-drum.js" defer></script>
   <script src="js/main.js" defer></script>
   <script src="js/animations.js" defer></script>
+  <script src="js/scroll-fx.js" defer></script>
 </head>
 <body>
   <header class="site-header" data-stagger="0">
@@ -37,26 +39,58 @@
   <main id="main">
     <section id="hero" class="hero" aria-label="Introduction">
       <div class="hero-inner">
-        <div class="hero-text">
-          <p class="hero-eyebrow" data-stagger="1">Hello, I'm</p>
-          <h1 class="hero-name" data-stagger="2">Abishek T</h1>
-          <p class="hero-tagline" data-stagger="3">
-            Developer and AI enthusiast building impactful solutions across AI,
-            full-stack and real-time systems.
-          </p>
-          <div class="hero-ctas" data-stagger="4">
-            <a class="btn btn-primary" href="#projects">View Projects</a>
-            <a class="btn btn-outline" href="#contact">Get in Touch</a>
+        <div class="hero-top" data-stagger="1">
+          <span class="hero-mark">Abishek T&nbsp;&copy;</span>
+          <span class="hero-index">Portfolio <span aria-hidden="true">/</span> 2026</span>
+        </div>
+
+        <h1 class="hero-name" data-stagger="2">Abishek T.</h1>
+
+        <div class="hero-body">
+          <div class="hero-text">
+            <p class="hero-eyebrow" data-stagger="3">
+              <span class="hero-status-dot" aria-hidden="true"></span>Open to full-time roles
+            </p>
+            <p class="hero-tagline" data-stagger="3">
+              Developer and AI enthusiast building impactful solutions across AI,
+              full-stack and real-time systems.
+            </p>
+            <div class="hero-ctas" data-stagger="4">
+              <a class="btn btn-primary" href="#projects">View Projects</a>
+              <a class="btn btn-outline" href="#contact">Get in Touch</a>
+            </div>
+          </div>
+          <div class="hero-visual">
+            <div class="hero-photo" data-stagger="5">
+              <img src="assets/hero-portrait-red-black.png" alt="ASCII-style portrait of Abishek T against a red circle" width="768" height="768" fetchpriority="high">
+              <canvas class="hero-halftone" aria-hidden="true"></canvas>
+            </div>
           </div>
         </div>
-        <div class="hero-visual">
-          <div class="hero-photo" data-stagger="5">
-            <img src="assets/hero-portrait-red-black.png" alt="ASCII-style portrait of Abishek T against a red circle" width="768" height="768" fetchpriority="high">
-            <canvas class="hero-halftone" aria-hidden="true"></canvas>
-          </div>
+
+        <div class="hero-foot" data-stagger="4">
+          <span>B.Tech IT &rsquo;26</span>
+          <span>Chennai, India</span>
+          <a class="hero-scroll" href="#about">
+            Scroll
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 4v16M5 13l7 7 7-7"/>
+            </svg>
+          </a>
         </div>
       </div>
     </section>
+
+    <div class="marquee" aria-hidden="true">
+      <div class="marquee-row" data-speed="-0.35">
+        <span>AI Systems <i>&#10022;</i> Full-Stack <i>&#10022;</i> Real-Time <i>&#10022;</i> Production POS <i>&#10022;</i> RAG <i>&#10022;</i> Web3 <i>&#10022;</i></span>
+        <span>AI Systems <i>&#10022;</i> Full-Stack <i>&#10022;</i> Real-Time <i>&#10022;</i> Production POS <i>&#10022;</i> RAG <i>&#10022;</i> Web3 <i>&#10022;</i></span>
+      </div>
+      <div class="marquee-row marquee-row--outline" data-speed="0.25">
+        <span>Java <i>&#10022;</i> Python <i>&#10022;</i> React <i>&#10022;</i> Angular <i>&#10022;</i> Firebase <i>&#10022;</i> Django <i>&#10022;</i> Solidity <i>&#10022;</i></span>
+        <span>Java <i>&#10022;</i> Python <i>&#10022;</i> React <i>&#10022;</i> Angular <i>&#10022;</i> Firebase <i>&#10022;</i> Django <i>&#10022;</i> Solidity <i>&#10022;</i></span>
+      </div>
+    </div>
     <section id="about" class="about" aria-labelledby="about-title">
       <div class="about-bg" aria-hidden="true">
         <img src="assets/creation-of-adam.jpeg" alt="" width="632" height="700" loading="lazy" decoding="async">

@@ -790,8 +790,8 @@ function initProjectsDrum() {
  */
 const TECH_TEXT_TARGETS = [
   // [selector, extra options]
-  ['.hero-name', { sweep: true, reach: 160 }],
-  ['.section-title', { sweep: false }]
+  ['.hero-name', { sweep: true, reach: 180, letterSpacing: -0.065 }],
+  ['.section-title', { sweep: false, letterSpacing: -0.045 }]
   // Small sub-headings (About, Skills) stay plain text: at that size, over the artwork,
   // the dashed outline reads as broken letters
 ];
@@ -804,11 +804,16 @@ function initTechText() {
   const instances = [];
   TECH_TEXT_TARGETS.forEach(([selector, extra]) => {
     document.querySelectorAll(selector).forEach((el) => {
-      const text = el.textContent.replace(/\s+/g, ' ').trim();
-      if (!text || el.classList.contains('tt-on')) return;
+      const plain = el.textContent.replace(/\s+/g, ' ').trim();
+      if (!plain || el.classList.contains('tt-on')) return;
+      // The canvas draws raw text, so apply the heading's CSS text-transform by hand.
+      // The screen-reader copy keeps the original casing.
+      const transform = getComputedStyle(el).textTransform;
+      const text = transform === 'uppercase' ? plain.toUpperCase()
+        : transform === 'lowercase' ? plain.toLowerCase() : plain;
       const label = document.createElement('span');
       label.className = 'tt-sr';
-      label.textContent = text;
+      label.textContent = plain;
       const host = document.createElement('span');
       host.className = 'tt-host';
       host.setAttribute('aria-hidden', 'true');
@@ -819,7 +824,6 @@ function initTechText() {
         text,
         color: 'inherit',
         accentColor: '#c9a46a',
-        letterSpacing: -0.01,
         align: 'auto',
         padX: 0,
         dashLength: 4,

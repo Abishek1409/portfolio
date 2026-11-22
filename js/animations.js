@@ -97,37 +97,75 @@ function initScrollReveal() {
   if (!('IntersectionObserver' in window)) return;
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-  const selectors = [
-    '.about-summary', '.about-block', '.skill-group',
-    '.achievement-list li', '.contact-card', '.timeline-item',
+  // [selector, variant]. Variants: '' = fade up, 'rv-mask' = wipe up from a clipped line,
+  // 'rv-scale' = rise and grow slightly. Delays stagger within each element's own parent.
+  const groups = [
+    ['.section-title:not(.projects-reveal)', 'rv-mask'],
+    ['.about-heading', 'rv-mask'],
+    ['.about-summary, .contact-intro', ''],
+    ['.about-block, .timeline-item, .achievement-list li, .contact-card', ''],
+    ['.skill-group', 'rv-scale'],
+    ['.skill-group .chips li', 'rv-chip'],
+    ['.site-footer > *', ''],
   ];
 
-  const targets = document.querySelectorAll(selectors.join(','));
+  const targets = [];
+  groups.forEach(([selector, variant]) => {
+    document.querySelectorAll(selector).forEach((el) => {
+      if (el.classList.contains('rv')) return;
+      const siblings = el.parentElement ? Array.from(el.parentElement.children) : [el];
+      const idx = Math.max(0, siblings.indexOf(el));
+      // Chips ripple in quickly after their card; everything else steps 90ms apart
+      const delay = variant === 'rv-chip' ? 250 + idx * 45 : (idx % 5) * 90;
+      el.style.setProperty('--rv-delay', `${delay}ms`);
+      el.classList.add('rv');
+      if (variant) el.classList.add(variant);
+      targets.push({ el, delay });
+    });
+  });
 
   // The hidden and shown states live in a class (.rv / .rv-in, see injectStyles). Once an element
   // has finished appearing the classes are removed again, so the element's own hover, tilt and
-  // transition rules apply. Leaving inline `transform: none` and a 0.7s transition behind would
+  // transition rules apply. Leaving inline `transform: none` and a 0.9s transition behind would
   // override the card hover lift and slow the achievement tilt.
-  targets.forEach((el, i) => {
-    el.style.setProperty('--rv-delay', `${(i % 5) * 90}ms`);
-    el.classList.add('rv');
-  });
+  const delays = new Map(targets.map((t) => [t.el, t.delay]));
+  const show = (el) => {
+    if (!el.classList.contains('rv') || el.classList.contains('rv-in')) return;
+    el.classList.add('rv-in');
+    setTimeout(() => {
+      el.classList.remove('rv', 'rv-in', 'rv-mask', 'rv-scale', 'rv-chip');
+      el.style.removeProperty('--rv-delay');
+    }, 900 + (delays.get(el) || 0) + 100);
+  };
 
-  const REVEAL_MS = 700 + 4 * 90 + 100; // transition + longest stagger + margin
   const obs = new IntersectionObserver((entries) => {
     entries.forEach((entry) => {
       if (!entry.isIntersecting) return;
       const el = entry.target;
-      el.classList.add('rv-in');
       obs.unobserve(el);
-      setTimeout(() => {
-        el.classList.remove('rv', 'rv-in');
-        el.style.removeProperty('--rv-delay');
-      }, REVEAL_MS);
+      show(el);
+      // Chips are revealed with their card, not on their own
+      if (el.classList.contains('skill-group')) el.querySelectorAll('.rv-chip').forEach(show);
     });
-  }, { threshold: 0.1, rootMargin: '0px 0px -6% 0px' });
+  }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
 
-  targets.forEach((el) => obs.observe(el));
+  // A fully clipped element never counts as intersecting, so masked headings are triggered by
+  // their parent (they sit at its top) instead of by themselves.
+  const maskObs = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      maskObs.unobserve(entry.target);
+      Array.from(entry.target.children).forEach((child) => {
+        if (child.classList.contains('rv-mask')) show(child);
+      });
+    });
+  }, { threshold: 0, rootMargin: '0px 0px -12% 0px' });
+
+  targets.forEach(({ el }) => {
+    if (el.classList.contains('rv-chip')) return;
+    if (el.classList.contains('rv-mask') && el.parentElement) maskObs.observe(el.parentElement);
+    else obs.observe(el);
+  });
 }
 
 /* ─── 3. Nav scroll-shrink ────────────────────────────────────────────────── */
@@ -341,11 +379,32 @@ function injectStyles() {
 /* ── Scroll reveal: the classes are removed once an element has appeared ── */
 .rv {
   opacity: 0;
-  transform: translateY(32px);
-  transition: opacity 0.7s cubic-bezier(0.22,1,0.36,1), transform 0.7s cubic-bezier(0.22,1,0.36,1);
+  transform: translate3d(0, 40px, 0);
+  transition:
+    opacity 0.9s cubic-bezier(0.22,1,0.36,1),
+    transform 0.9s cubic-bezier(0.22,1,0.36,1),
+    clip-path 0.9s cubic-bezier(0.22,1,0.36,1);
   transition-delay: var(--rv-delay, 0ms);
 }
 .rv.rv-in { opacity: 1; transform: none; }
+/* Wipe up from behind a mask line, like type sliding out of a slot */
+.rv.rv-mask {
+  opacity: 1;
+  transform: translate3d(0, 0.45em, 0);
+  clip-path: inset(0 0 100% 0);
+}
+.rv.rv-mask.rv-in { transform: none; clip-path: inset(-0.3em -0.3em -0.3em -0.3em); }
+.rv.rv-scale { transform: translate3d(0, 56px, 0) scale(0.94); }
+.rv.rv-scale.rv-in { transform: none; }
+/* Two classes outrank the chip's own .chips li transition */
+.rv.rv-chip {
+  transform: translate3d(0, 14px, 0) scale(0.9);
+  transition:
+    opacity 0.55s cubic-bezier(0.22,1,0.36,1),
+    transform 0.55s cubic-bezier(0.22,1,0.36,1);
+  transition-delay: var(--rv-delay, 0ms);
+}
+.rv.rv-chip.rv-in { transform: none; }
 
 /* ── Cursor glow ── */
 .cursor-glow {

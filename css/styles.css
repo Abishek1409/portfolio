@@ -7,10 +7,12 @@
   --accent: #c9a46a;    /* ~8:1 on --bg */
   --border: rgba(242, 239, 233, 0.12);
   --nav-h: 4rem;
-  /* Cinzel gives display headings the engraved Roman-serif character of the reference. */
-  --font-head: 'Cinzel', Georgia, serif;
-  /* Crimson Pro remains the readable body face. */
-  --font-body: 'Athelas', 'Crimson Pro', Georgia, serif;
+  /* Heavy neo-grotesk display face, set tight (Swiss poster style). */
+  --font-head: 'Inter Tight', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  /* Same family's text cut for readable body copy. */
+  --font-body: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --track-tight: -0.045em;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --max-w: 72rem;
 }
 
@@ -35,20 +37,30 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-body);
-  font-size: 1rem;
+  font-size: 0.9375rem;
   line-height: 1.65;
+  letter-spacing: -0.006em;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'ss01', 'cv11';
 }
 
-h1, h2, h3 {
+h1, h2, h3, h4 {
   font-family: var(--font-head);
-  line-height: 1.2;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: var(--track-tight);
   margin: 0 0 0.75rem;
 }
+/* Display headings: uppercase and very tight, like the reference poster type */
+h1, h2 {
+  text-transform: uppercase;
+  line-height: 0.92;
+}
 h1 { font-size: clamp(2.5rem, 6.75vw, 4.5rem); }
-h2 { font-size: clamp(1.75rem, 4.5vw, 2.75rem); }
-h3 { font-size: 1.25rem; }
+h2 { font-size: clamp(2rem, 5.5vw, 3.5rem); }
+h3 { font-size: 1.25rem; letter-spacing: -0.03em; font-weight: 700; }
+h4 { letter-spacing: -0.02em; }
 
 p { margin: 0 0 1rem; }
 
@@ -109,7 +121,8 @@ section { scroll-margin-top: var(--nav-h); }
 .nav-logo {
   font-family: var(--font-head);
   font-size: 1.5rem;
-  font-weight: 700;
+  font-weight: 900;
+  letter-spacing: -0.06em;
   color: var(--accent);
   text-decoration: none;
 }
@@ -125,7 +138,11 @@ section { scroll-margin-top: var(--nav-h); }
 .nav-links a {
   color: var(--text);
   text-decoration: none;
-  font-weight: 500;
+  font-family: var(--font-head);
+  font-weight: 600;
+  font-size: 0.875rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
   padding: 0.25rem 0;
   border-bottom: 2px solid transparent;
   transition: color 0.2s, border-color 0.2s;
@@ -204,79 +221,163 @@ section { scroll-margin-top: var(--nav-h); }
   display: inline-block;
   padding: 0.8rem 1.6rem;
   border-radius: 999px;
-  font-weight: 600;
+  font-family: var(--font-head);
+  font-weight: 700;
+  letter-spacing: -0.01em;
   text-decoration: none;
   border: 2px solid var(--accent);
-  transition: background-color 0.2s, color 0.2s;
+  transition: background-color 0.2s, color 0.2s, transform 0.35s var(--ease-out);
 }
+.btn:hover { transform: translateY(-2px); }
 .btn-primary { background: var(--accent); color: var(--bg); }
 .btn-primary:hover { background: transparent; color: var(--accent); }
 .btn-outline { background: transparent; color: var(--accent); }
 .btn-outline:hover { background: var(--accent); color: var(--bg); }
 
 /* ===== Hero_Section ===== */
+/* Swiss-poster layout: label row, a full-width name set huge and tight, then the statement beside
+   the portrait, and a footer row. JS (scroll-fx.js) writes --hero-p (0 at the top, 1 once the hero
+   has scrolled away), which drives the parallax below. Only `translate`/`scale`/`opacity` move, and
+   the elements carrying the intro stagger (which owns `transform` and `opacity`) only get the
+   individual `translate`/`scale` properties, so the two never fight. */
 .hero {
+  --hero-p: 0;
   position: relative;
-  overflow: hidden;       /* the halftone sphere is wider than its column */
+  overflow: hidden;
   min-height: 100vh;
   min-height: 100svh;
   display: flex;
-  align-items: center;
-  padding: calc(var(--nav-h) + 2rem) 1.5rem 3rem;
+  align-items: stretch;
+  padding: calc(var(--nav-h) + 1.25rem) 1.5rem 1.5rem;
 }
 
 .hero-inner {
+  position: relative;
+  z-index: 2;
   width: 100%;
   max-width: var(--max-w);
   margin: 0 auto;
-  display: grid;
-  grid-template-columns: 1.2fr 1fr;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  opacity: calc(1 - var(--hero-p) * 1.1);
+}
+
+/* Label row, like the small "BRAND ©" / "5/8" marks on the reference */
+.hero-top,
+.hero-foot {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 3rem;
+  gap: 1rem;
+  font-family: var(--font-head);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+.hero-top { padding-bottom: 0.9rem; border-bottom: 1px solid var(--border); }
+.hero-index {
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(242, 239, 233, 0.08);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The name: as large as the column allows, capped by the viewport height so the whole hero fits */
+.hero-name {
+  margin: 0;
+  font-size: clamp(3.25rem, min(17.5vw, 30svh), 15.5rem);
+  font-weight: 900;
+  line-height: 0.8;
+  letter-spacing: -0.065em;
+  color: var(--text);
+  white-space: nowrap;
+  translate: 0 calc(var(--hero-p) * -10vh);
+}
+/* Plain-text version (touch, no JS): keep the overhang of the tight caps inside the column */
+.hero-name:not(.tt-on) { padding: 0.06em 0 0.04em; margin-left: -0.04em; }
+/* Canvas version: a shorter host than other headings, the giant type needs little extra room */
+.hero-name .tt-host { height: 1.08em; margin-block: -0.02em; }
+
+.hero-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 2.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+  flex: 1 1 auto;
+}
+
+.hero-text {
+  position: relative;
+  z-index: 2;
+  translate: 0 calc(var(--hero-p) * -4vh);
 }
 
 .hero-eyebrow {
-  color: var(--accent);
-  font-weight: 500;
-  letter-spacing: 0.15em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 1.1rem;
+  font-family: var(--font-head);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  font-size: 0.875rem;
-  margin-bottom: 0.5rem;
+  color: var(--accent);
+}
+.hero-status-dot {
+  position: relative;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: #2ea043;
+}
+.hero-status-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(46, 160, 67, 0.6);
+  animation: badge-pulse 2s ease-out infinite;
 }
 
-.hero-name { margin-bottom: 1rem; }
-
+/* Statement set in the display face, large and tight */
 .hero-tagline {
-  color: var(--muted);
-  font-size: 1.125rem;
   max-width: 34rem;
   margin-bottom: 2rem;
+  font-family: var(--font-head);
+  font-size: clamp(1.5rem, 2.6vw, 2.35rem);
+  font-weight: 700;
+  line-height: 1.04;
+  letter-spacing: -0.04em;
+  color: var(--text);
 }
 
 .hero-ctas {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: 0.75rem;
 }
-
-/* Keep hero copy above visual effects. */
-.hero-text { position: relative; z-index: 2; }
 
 .hero-visual {
   position: relative;
   z-index: 1;
-  justify-self: center;
-  width: 100%;
   display: flex;
-  justify-content: center;
+  justify-content: flex-end;
+  translate: 0 calc(var(--hero-p) * 8vh);
 }
 
 .hero-photo {
   position: relative;
   z-index: 1;
-  width: min(100%, 80vh, 40rem);
+  width: min(100%, 36svh, 24rem);
   overflow: hidden;
-  border-radius: 1.5rem;
+  border-radius: 50%;
+  scale: calc(1 - var(--hero-p) * 0.12);
 }
 
 .hero-halftone {
@@ -288,59 +389,133 @@ section { scroll-margin-top: var(--nav-h); }
   pointer-events: none;
 }
 
-/* Natural portrait ratio: the full photo is shown, never cropped */
 .hero-photo img {
   width: 100%;
   height: auto;
   filter: brightness(1.55) contrast(1.02);
 }
 
-/* Phones: the details lead at the top and the photo sits to the side, level with the tagline,
-   instead of a large centred photo pushing everything else below the fold. */
+.hero-foot {
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+}
+.hero-scroll {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text);
+  text-decoration: none;
+}
+.hero-scroll svg {
+  width: 1rem;
+  height: 1rem;
+  animation: hero-scroll-bob 1.8s var(--ease-out) infinite;
+}
+.hero-scroll:hover { color: var(--accent); }
+@keyframes hero-scroll-bob {
+  0%, 100% { transform: translateY(-2px); }
+  50% { transform: translateY(3px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-scroll svg,
+  .hero-status-dot::after { animation: none; }
+}
+
+/* Short laptop screens: trim spacing so the hero still fits one screen */
+@media (min-width: 768px) and (max-height: 760px) {
+  .hero-inner { gap: 0.9rem; }
+  .hero-body { padding-top: 0.9rem; }
+  .hero-tagline { margin-bottom: 1.25rem; }
+}
+
+/* Phones: name across the top, statement and portrait side by side, buttons below */
 @media (max-width: 767.98px) {
   .hero {
-    align-items: flex-start;
-    min-height: 0;   /* the hero is as tall as its content; no empty screen under the buttons */
-    padding: calc(var(--nav-h) + 1.5rem) 1.25rem 5rem;
+    min-height: 0;
+    padding: calc(var(--nav-h) + 1rem) 1rem 2.5rem;
   }
-  .hero-inner {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 0.76fr);
+  .hero-inner { gap: 1rem; }
+  .hero-top, .hero-foot { font-size: 0.6875rem; }
+  .hero-foot span:nth-child(2) { display: none; }
+  .hero-name { font-size: clamp(2.5rem, 19vw, 6rem); }
+  .hero-body {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.62fr);
     grid-template-areas:
       "eyebrow eyebrow"
-      "name    name"
       "tagline visual"
       "ctas    ctas";
     align-items: start;
     gap: 0 1rem;
-    text-align: left;
+    padding-top: 1rem;
   }
-  /* The text children join the grid directly, so the photo can sit between them */
   .hero-text { display: contents; }
-  .hero-eyebrow,
-  .hero-name,
-  .hero-tagline,
-  .hero-ctas { position: relative; z-index: 2; }
-  .hero-eyebrow { grid-area: eyebrow; }
-  .hero-name { grid-area: name; }
+  .hero-eyebrow { grid-area: eyebrow; margin-bottom: 0.75rem; font-size: 0.75rem; }
   .hero-tagline {
     grid-area: tagline;
-    font-size: 1rem;
-    line-height: 1.55;
-    margin-bottom: 1.5rem;
-    /* A dark halo keeps the hero's ambient particles from cutting through the words. */
-    text-shadow: 0 0 0.35rem var(--bg), 0 0 0.8rem var(--bg), 0 0 1.2rem var(--bg);
+    position: relative;
+    z-index: 2;
+    font-size: clamp(1.25rem, 5.6vw, 1.6rem);
+    margin-bottom: 1.25rem;
   }
-  .hero-ctas { grid-area: ctas; margin-top: 0.5rem; }
+  .hero-ctas { grid-area: ctas; position: relative; z-index: 2; }
+  .hero-ctas .btn { flex: 1 1 0; text-align: center; padding-inline: 1rem; }
   .hero-visual { grid-area: visual; }
   .hero-photo { width: 100%; }
-  .hero-photo img {
-    width: 100%;
-    max-width: none;
-    aspect-ratio: 4 / 5;
-    object-fit: cover;
-    object-position: 50% 30%;
-  }
 }
+
+/* ===== Marquee band (scroll-linked, see js/scroll-fx.js) ===== */
+.marquee {
+  position: relative;
+  overflow: hidden;
+  padding: 1.5rem 0;
+  border-block: 1px solid var(--border);
+  background: var(--bg);
+  font-family: var(--font-head);
+  font-weight: 900;
+  font-size: clamp(2.25rem, 7vw, 5.5rem);
+  line-height: 1;
+  letter-spacing: -0.05em;
+  text-transform: uppercase;
+  user-select: none;
+}
+.marquee-row {
+  display: flex;
+  width: max-content;
+  white-space: nowrap;
+  will-change: transform;
+}
+.marquee-row + .marquee-row { margin-top: 0.1em; }
+.marquee-row span { display: block; padding-right: 0.35em; }
+.marquee-row i {
+  font-style: normal;
+  font-size: 0.5em;
+  vertical-align: 0.4em;
+  color: var(--accent);
+  margin: 0 0.25em;
+}
+.marquee-row--outline { color: transparent; -webkit-text-stroke: 1.5px rgba(242, 239, 233, 0.45); }
+.marquee-row--outline i { -webkit-text-stroke: 0; }
+
+/* ===== Scroll progress bar (under the nav) ===== */
+.scroll-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  pointer-events: none;
+}
+
+/* ===== Lenis smooth scrolling ===== */
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
+.lenis.lenis-stopped { overflow: hidden; }
 
 /* ===== Shared section styles ===== */
 .section-title {
