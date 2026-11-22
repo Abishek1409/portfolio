@@ -1,9 +1,7 @@
-// scroll-fx.js: smooth (inertial) scrolling and scroll-linked effects.
+// scroll-fx.js: smooth (inertial) scrolling and the scroll progress bar.
 //   1. Lenis smooth scrolling on mouse/trackpad (native touch scrolling is left alone)
 //   2. Progress bar under the nav
-//   3. (The hero's scroll story lives in js/story.js)
-//   4. Marquee band: each row slides sideways with the scroll position
-// Everything is skipped with prefers-reduced-motion. Effects only move transform/opacity.
+// Smooth scrolling is skipped with prefers-reduced-motion.
 'use strict';
 
 (function () {
@@ -70,62 +68,29 @@
     return lenis;
   }
 
-  /* ─── 2–4. Scroll-linked effects, all driven by one rAF-throttled listener ─ */
+  /* ─── 2. Progress bar under the nav ─────────────────────────────────── */
   function initScrollEffects() {
     const header = document.querySelector('.site-header');
-
-    const rows = Array.from(document.querySelectorAll('.marquee-row'));
-    const marquee = document.querySelector('.marquee');
-
-    let bar = null;
-    if (header) {
-      bar = document.createElement('div');
-      bar.className = 'scroll-progress';
-      bar.setAttribute('aria-hidden', 'true');
-      header.appendChild(bar);
-    }
-
-    // Marquee geometry: each row holds two identical halves, so sliding by one half loops seamlessly
-    let halves = [];
-    let marqueeTop = 0;
-    const measure = () => {
-      halves = rows.map((row) => (row.firstElementChild ? row.firstElementChild.offsetWidth : 0));
-      marqueeTop = marquee ? marquee.getBoundingClientRect().top + window.scrollY : 0;
-    };
+    if (!header) return;
+    const bar = document.createElement('div');
+    bar.className = 'scroll-progress';
+    bar.setAttribute('aria-hidden', 'true');
+    header.appendChild(bar);
 
     let ticking = false;
     const update = () => {
       ticking = false;
-      const y = window.scrollY;
       const max = Math.max(1, root.scrollHeight - window.innerHeight);
-
-      if (bar) bar.style.transform = `scaleX(${Math.min(1, Math.max(0, y / max)).toFixed(4)})`;
-
-      if (!reduced) {
-        // Offset relative to when the band enters the screen, so it starts in the same place
-        const rel = y - (marqueeTop - window.innerHeight);
-        rows.forEach((row, i) => {
-          const half = halves[i];
-          if (!half) return;
-          const speed = parseFloat(row.dataset.speed) || 0.3;
-          let x = (rel * speed) % half;
-          if (x > 0) x -= half;   // always keep the row covering the band's left edge
-          row.style.transform = `translate3d(${x.toFixed(1)}px,0,0)`;
-        });
-      }
+      bar.style.transform = `scaleX(${Math.min(1, Math.max(0, window.scrollY / max)).toFixed(4)})`;
     };
     const onScroll = () => {
       if (ticking) return;
       ticking = true;
       requestAnimationFrame(update);
     };
-
-    measure();
     update();
     window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', () => { measure(); onScroll(); }, { passive: true });
-    window.addEventListener('load', () => { measure(); onScroll(); });
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { measure(); onScroll(); });
+    window.addEventListener('resize', onScroll, { passive: true });
   }
 
   document.addEventListener('DOMContentLoaded', () => {

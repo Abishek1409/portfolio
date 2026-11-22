@@ -242,13 +242,9 @@ section { scroll-margin-top: var(--nav-h); }
 .btn-outline:hover { background: var(--accent); color: var(--bg); }
 
 /* ===== Hero_Section ===== */
-/* Swiss-poster layout: label row, the name set large and tight, then the copy beside a big ASCII
-   portrait, and a footer row. With JS the hero is also a scroll story (js/story.js): .story-on
-   makes it several screens tall, the stage pins, and --story-in (0..1) hands the intro copy over to
-   the chapters. Elements carrying the intro stagger own `transform`/`opacity`, so story motion only
-   uses the individual `translate` property or wrappers without data-stagger. */
+/* Swiss-poster layout: label row, the name with the 3D companion beside it, then the copy next to
+   the portrait, and a footer row. */
 .hero {
-  --story-in: 0;
   position: relative;
   background: var(--bg);
   color: var(--text);
@@ -296,6 +292,13 @@ section { scroll-margin-top: var(--nav-h); }
   font-variant-numeric: tabular-nums;
 }
 
+/* Name on the left, the companion on the right of the same row */
+.hero-headline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
 .hero-name {
   margin: 0;
   font-size: clamp(2.5rem, min(8vw, 13svh), 7.25rem);
@@ -308,6 +311,27 @@ section { scroll-margin-top: var(--nav-h); }
   padding-top: 0.04em;
 }
 .hero-initial { color: var(--accent); }
+
+/* 3D companion (js/buddy.js draws into it). Taller than the name row, so negative margins let it
+   overhang the rules above and below instead of pushing the layout down. */
+.hero-buddy {
+  --buddy-body: var(--accent);
+  --buddy-white: #fbf8f2;
+  --buddy-iris: #2b1d14;
+  --buddy-ink: #0d0a0a;
+  --buddy-tip: #e0453c;
+  --buddy-blush: #ff6f6f;
+  --buddy-outline: #0d0a0a;
+  position: relative;
+  flex: 0 0 auto;
+  width: clamp(7.5rem, 15vw, 14rem);
+  aspect-ratio: 1;
+  margin-block: -2.5rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.hero-buddy canvas { display: block; width: 100%; height: 100%; }
 
 .hero-body {
   display: grid;
@@ -373,10 +397,7 @@ section { scroll-margin-top: var(--nav-h); }
   min-height: 0;
 }
 
-/* Bigger portrait. The image is the fallback; with JS the 3D figure canvas replaces it. */
 .hero-photo {
-  --figure-ink: var(--text);
-  --figure-disc: #a53640;
   position: relative;
   width: min(100%, 54svh, 34rem);
   aspect-ratio: 1;
@@ -385,20 +406,6 @@ section { scroll-margin-top: var(--nav-h); }
   width: 100%;
   height: auto;
   border-radius: 50%;
-  /* Lifted so the ASCII glyphs read as a bright print rather than a dim photo */
-  filter: brightness(1.9) contrast(1.12);
-  transition: opacity 0.6s;
-}
-.hero-figure { display: none; }
-.hero-photo.has-figure img { opacity: 0; }
-.hero-photo.has-figure .hero-figure {
-  display: block;
-  position: absolute;
-  /* Larger than the photo, so the figure can turn and scatter without being clipped */
-  inset: -15%;
-  width: 130%;
-  height: 130%;
-  pointer-events: none;
 }
 
 .hero-foot {
@@ -424,156 +431,37 @@ section { scroll-margin-top: var(--nav-h); }
   50% { transform: translateY(3px); }
 }
 
-/* ── Story (no JS / reduced motion: a plain numbered list under the intro) ── */
-.story {
-  list-style: none;
-  margin: 2.5rem 0 0;
-  padding: 0;
-  display: grid;
-  gap: 1.25rem;
-}
-.story-kicker {
-  display: flex;
-  align-items: baseline;
-  gap: 0.75rem;
-  margin: 0 0 0.6rem;
-  font-family: var(--font-head);
-  font-size: 0.8125rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--accent);
-}
-.story-num {
-  font-variant-numeric: tabular-nums;
-  padding: 0.15rem 0.5rem;
-  border: 1px solid currentColor;
-  border-radius: 999px;
-  font-size: 0.75rem;
-}
-.story-line {
-  margin: 0;
-  max-width: 30rem;
-  font-family: var(--font-head);
-  font-size: 1.25rem;
-  font-weight: 700;
-  line-height: 1.12;
-  letter-spacing: -0.035em;
-  color: var(--text);
-}
-.story-cta {
-  display: inline-block;
-  margin-top: 1.25rem;
-  font-family: var(--font-head);
-  font-weight: 800;
-  font-size: 1.125rem;
-  letter-spacing: -0.02em;
-  color: var(--accent);
-  text-decoration: none;
-  border-bottom: 2px solid currentColor;
-  transition: gap 0.3s;
-}
-.story-meter { display: none; }
-
-/* ── Story mode (JS) ── */
-.story-on .hero { height: calc(100svh + var(--story-chapters, 6) * 70svh); }
-.story-on .hero-sticky {
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  height: 100svh;
-}
-/* Intro copy and chapters share one cell, so they swap in place */
-.story-on .hero-copy { display: grid; grid-template-areas: "stack"; align-items: center; }
-.story-on .hero-copy > * { grid-area: stack; }
-.story-on .hero-text {
-  opacity: calc(1 - var(--story-in) * 1.6);
-  translate: 0 calc(var(--story-in) * -2.5rem);
-}
-.story-on .hero.is-telling .hero-text { visibility: hidden; }
-
-.story-on .story { margin: 0; display: grid; grid-template-areas: "stack"; }
-.story-on .story-chapter {
-  grid-area: stack;
-  /* Opacity only (not visibility): screen readers keep the whole story, not just one chapter */
-  opacity: 0;
-  pointer-events: none;
-  translate: 0 1.75rem;
-  transition: opacity 0.5s var(--ease-out), translate 0.7s var(--ease-out);
-}
-.story-on .story-chapter.is-past { translate: 0 -1.75rem; }
-.story-on .story-chapter.is-active {
-  opacity: 1;
-  pointer-events: auto;
-  translate: 0 0;
-  transition: opacity 0.5s var(--ease-out) 0.08s, translate 0.7s var(--ease-out) 0.08s;
-}
-.story-on .story-line {
-  max-width: 34rem;
-  font-size: clamp(1.6rem, 2.8vw, 2.6rem);
-  line-height: 1.04;
-  letter-spacing: -0.042em;
-}
-/* Words are told one at a time as you scroll */
-.story-on .story-w { opacity: 0.13; transition: opacity 0.35s var(--ease-out); }
-.story-on .story-w.is-on { opacity: 1; }
-
-.story-on .hero-foot-meta { display: none; }
-.story-on .story-meter {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--text);
-}
-.story-bar {
-  position: relative;
-  width: clamp(5rem, 14vw, 11rem);
-  height: 2px;
-  background: rgba(var(--text-rgb), 0.18);
-  overflow: hidden;
-}
-.story-bar-fill {
-  position: absolute;
-  inset: 0;
-  background: var(--accent);
-  transform: scaleX(0);
-  transform-origin: 0 50%;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .hero-scroll svg,
   .hero-status-dot::after { animation: none; }
 }
 
-/* Short laptop screens: trim spacing so the stage still fits one screen */
+/* Short laptop screens: trim spacing so the hero still fits one screen */
 @media (min-width: 768px) and (max-height: 760px) {
   .hero-inner { gap: 0.8rem; }
   .hero-body { padding-top: 0.8rem; }
   .hero-tagline { margin-bottom: 1.25rem; }
 }
 
-/* Phones: name, then the portrait large and centred, then the copy / story below it */
+/* Phones: name and companion on one row, then the portrait large and centred, then the copy */
 @media (max-width: 767.98px) {
-  .hero-sticky { padding: calc(var(--nav-h) + 0.9rem) 1rem 1rem; }
+  .hero-sticky { padding: calc(var(--nav-h) + 0.9rem) 1rem 1.25rem; }
   .hero-inner { gap: 0.8rem; }
   .hero-top, .hero-foot { font-size: 0.6875rem; }
   .hero-name { font-size: clamp(2.25rem, 12.5vw, 4rem); }
+  .hero-buddy { width: clamp(5rem, 27vw, 7.5rem); margin-block: -1.25rem; }
   .hero-body {
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    gap: 1rem;
-    padding-top: 0.9rem;
+    gap: 1.1rem;
+    padding-top: 1rem;
   }
   .hero-visual { order: -1; }
-  .hero-photo { width: min(100%, 34svh, 22rem); }
+  .hero-photo { width: min(100%, 38svh, 22rem); }
   .hero-eyebrow { margin-bottom: 0.6rem; font-size: 0.75rem; }
   .hero-tagline { font-size: clamp(1.25rem, 5.6vw, 1.6rem); margin-bottom: 1rem; }
   .hero-ctas .btn { flex: 1 1 0; text-align: center; padding-inline: 1rem; }
-  .story-on .story-line { font-size: clamp(1.25rem, 5.4vw, 1.6rem); }
-  .story-on .hero-copy { align-items: start; }
-  .story-bar { width: 4.5rem; }
 }
 
 /* ===== Theme toggle (yin-yang) ===== */
@@ -612,39 +500,6 @@ section { scroll-margin-top: var(--nav-h); }
 /* The new theme spreads from the button as a circle (js/theme.js animates the clip-path) */
 ::view-transition-old(root),
 ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
-
-/* ===== Marquee band (scroll-linked, see js/scroll-fx.js) ===== */
-.marquee {
-  position: relative;
-  overflow: hidden;
-  padding: 1.5rem 0;
-  border-block: 1px solid var(--border);
-  background: var(--bg);
-  font-family: var(--font-head);
-  font-weight: 900;
-  font-size: clamp(2.25rem, 7vw, 5.5rem);
-  line-height: 1;
-  letter-spacing: -0.05em;
-  text-transform: uppercase;
-  user-select: none;
-}
-.marquee-row {
-  display: flex;
-  width: max-content;
-  white-space: nowrap;
-  will-change: transform;
-}
-.marquee-row + .marquee-row { margin-top: 0.1em; }
-.marquee-row span { display: block; padding-right: 0.35em; }
-.marquee-row i {
-  font-style: normal;
-  font-size: 0.5em;
-  vertical-align: 0.4em;
-  color: var(--accent);
-  margin: 0 0.25em;
-}
-.marquee-row--outline { color: transparent; -webkit-text-stroke: 1.5px rgba(var(--text-rgb), 0.45); }
-.marquee-row--outline i { -webkit-text-stroke: 0; }
 
 /* ===== Scroll progress bar (under the nav) ===== */
 .scroll-progress {
@@ -693,15 +548,19 @@ html.lenis, html.lenis body { height: auto; }
   --accent-rgb: 255, 250, 244;
   --border: rgba(255, 250, 244, 0.3);
 }
-:root[data-theme="light"] .hero-photo { --figure-disc: #7d0a10; }
+/* Companion in day mode: white body with black ink, a black antenna tip */
+:root[data-theme="light"] .hero-buddy { --buddy-tip: #161111; --buddy-outline: #161111; --buddy-blush: #ff8f8f; }
+:root[data-theme="light"] .hero-photo img { box-shadow: 0 0 0 4px var(--text); }  /* white ring keeps the red disc apart from the red hero */
 :root[data-theme="light"] .hero-status-dot { background: #fffaf4; }
 :root[data-theme="light"] .hero-status-dot::after { background: rgba(255, 250, 244, 0.6); }
-:root[data-theme="light"] .marquee-row:not(.marquee-row--outline) { color: var(--accent); }
-:root[data-theme="light"] .marquee-row i { color: var(--text); }
+/* Painting stays visible: a light wash, not a white sheet. A soft paper glow behind each line
+   keeps the dark text readable where the fresco is busy. */
 :root[data-theme="light"] .about-bg::after {
-  background: linear-gradient(rgba(250, 247, 243, 0.84), rgba(250, 247, 243, 0.92));
+  background: linear-gradient(rgba(250, 247, 243, 0.42), rgba(250, 247, 243, 0.58));
 }
-:root[data-theme="light"] .about-inner { text-shadow: none; }
+:root[data-theme="light"] .about-inner {
+  text-shadow: 0 0 0.6rem rgba(250, 247, 243, 0.95), 0 0 1.4rem rgba(250, 247, 243, 0.8);
+}
 /* Project cards keep light type: their text sits on the paintings */
 :root[data-theme="light"] .project-card { --text: #f2efe9; --muted: #ddd6cb; color: var(--text); }
 /* Solid bar: a translucent one turns pink over the red hero */

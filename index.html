@@ -17,14 +17,14 @@
   </script>
   <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js" defer></script>
   <script src="js/tech-text.js" defer></script>
-  <script src="js/story-figure-data.js" defer></script>
-  <script src="js/story-figure.js" defer></script>
   <script src="js/project-drum.js" defer></script>
   <script src="js/main.js" defer></script>
   <script src="js/animations.js" defer></script>
   <script src="js/scroll-fx.js" defer></script>
   <script src="js/theme.js" defer></script>
-  <script src="js/story.js" defer></script>
+  <!-- Three.js for the 3D companion in the hero (js/buddy.js) -->
+  <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+  <script src="js/buddy.js" defer></script>
 </head>
 <body>
   <header class="site-header" data-stagger="0">
@@ -54,9 +54,6 @@
   </header>
 
   <main id="main">
-    <!-- The hero is also a scroll story: with JS it becomes tall and its inner stage pins, the
-         intro copy gives way to six chapters told by the 3D ASCII figure (js/story.js). Without
-         JS, or with reduced motion, the chapters are listed under the intro instead. -->
     <section id="hero" class="hero" aria-label="Introduction">
       <div class="hero-sticky">
         <div class="hero-inner">
@@ -65,7 +62,11 @@
             <span class="hero-index">Portfolio <span aria-hidden="true">/</span> 2026</span>
           </div>
 
-          <h1 class="hero-name" data-stagger="2">Abishek <span class="hero-initial">T</span></h1>
+          <div class="hero-headline">
+            <h1 class="hero-name" data-stagger="2">Abishek <span class="hero-initial">T</span></h1>
+            <!-- Decorative 3D companion whose eyes follow the pointer (js/buddy.js) -->
+            <div class="hero-buddy" data-stagger="2" aria-hidden="true"></div>
+          </div>
 
           <div class="hero-body">
             <div class="hero-copy">
@@ -82,51 +83,20 @@
                   <a class="btn btn-outline" href="#contact">Get in Touch</a>
                 </div>
               </div>
-
-              <ol class="story" aria-label="My story">
-                <li class="story-chapter" data-yaw="-0.42" data-pitch="0.06">
-                  <p class="story-kicker"><span class="story-num">01</span>Mayiladuthurai</p>
-                  <p class="story-line">I went to school in Mayiladuthurai. Finished Grade&nbsp;10 with 95.8%, Grade&nbsp;12 with 89.83%, and captained the school throw ball team.</p>
-                </li>
-                <li class="story-chapter" data-yaw="0.38" data-pitch="-0.04">
-                  <p class="story-kicker"><span class="story-num">02</span>Chennai, 2022</p>
-                  <p class="story-line">Then Chennai, for a B.Tech in IT at Rajalakshmi Engineering College. CGPA 8.32 so far. I joined the E-Cell and later led the tech team at Elite Club.</p>
-                </li>
-                <li class="story-chapter" data-yaw="-0.3" data-pitch="-0.08">
-                  <p class="story-kicker"><span class="story-num">03</span>Words first</p>
-                  <p class="story-line">My first job was writing, not coding. At Whautomate I wrote the user manuals, checked every step with the developers, and made onboarding easier to follow.</p>
-                </li>
-                <li class="story-chapter" data-yaw="0.5" data-pitch="0.05">
-                  <p class="story-kicker"><span class="story-num">04</span>Then I built</p>
-                  <p class="story-line">A donation platform on Ethereum. A RAG tool that turns PDFs into flashcards. An IDE where people code and talk in the same room.</p>
-                </li>
-                <li class="story-chapter" data-yaw="-0.5" data-pitch="0.02">
-                  <p class="story-kicker"><span class="story-num">05</span>In production</p>
-                  <p class="story-line">One of them left the classroom. My POS system takes real orders at Best Fruits Stall Cafe, and keeps going when the internet doesn&rsquo;t.</p>
-                </li>
-                <li class="story-chapter" data-yaw="0" data-pitch="0">
-                  <p class="story-kicker"><span class="story-num">06</span>What&rsquo;s next</p>
-                  <p class="story-line">I graduate in 2026 and I&rsquo;m looking for a full-time role where I ship things people use.</p>
-                  <a class="story-cta" href="#contact">Let&rsquo;s talk <span aria-hidden="true">&rarr;</span></a>
-                </li>
-              </ol>
             </div>
 
             <div class="hero-visual">
               <div class="hero-photo" data-stagger="5">
-                <img src="assets/hero-portrait-red-black.png" alt="ASCII-style portrait of Abishek T against a red circle" width="768" height="768" fetchpriority="high">
-                <canvas class="hero-figure" aria-hidden="true"></canvas>
+                <picture>
+                  <source srcset="assets/hero-portrait.webp" type="image/webp">
+                  <img src="assets/hero-portrait.png" alt="Portrait of Abishek T in a dark blazer against a red circle" width="960" height="960" fetchpriority="high">
+                </picture>
               </div>
             </div>
           </div>
 
           <div class="hero-foot" data-stagger="4">
             <span class="hero-foot-meta">B.Tech IT &rsquo;26 <span aria-hidden="true">&middot;</span> Chennai</span>
-            <span class="story-meter" aria-hidden="true">
-              <span class="story-count">00</span>
-              <span class="story-bar"><span class="story-bar-fill"></span></span>
-              <span>06</span>
-            </span>
             <a class="hero-scroll" href="#about">
               <span class="hero-scroll-label">Scroll</span>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -138,16 +108,6 @@
       </div>
     </section>
 
-    <div class="marquee" aria-hidden="true">
-      <div class="marquee-row" data-speed="-0.35">
-        <span>AI Systems <i>&#10022;</i> Full-Stack <i>&#10022;</i> Real-Time <i>&#10022;</i> Production POS <i>&#10022;</i> RAG <i>&#10022;</i> Web3 <i>&#10022;</i></span>
-        <span>AI Systems <i>&#10022;</i> Full-Stack <i>&#10022;</i> Real-Time <i>&#10022;</i> Production POS <i>&#10022;</i> RAG <i>&#10022;</i> Web3 <i>&#10022;</i></span>
-      </div>
-      <div class="marquee-row marquee-row--outline" data-speed="0.25">
-        <span>Java <i>&#10022;</i> Python <i>&#10022;</i> React <i>&#10022;</i> Angular <i>&#10022;</i> Firebase <i>&#10022;</i> Django <i>&#10022;</i> Solidity <i>&#10022;</i></span>
-        <span>Java <i>&#10022;</i> Python <i>&#10022;</i> React <i>&#10022;</i> Angular <i>&#10022;</i> Firebase <i>&#10022;</i> Django <i>&#10022;</i> Solidity <i>&#10022;</i></span>
-      </div>
-    </div>
     <section id="about" class="about" aria-labelledby="about-title">
       <div class="about-bg" aria-hidden="true">
         <img src="assets/creation-of-adam.jpeg" alt="" width="632" height="700" loading="lazy" decoding="async">
