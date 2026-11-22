@@ -790,7 +790,6 @@ function initProjectsDrum() {
  */
 const TECH_TEXT_TARGETS = [
   // [selector, extra options]
-  ['.hero-name', { sweep: true, reach: 180, letterSpacing: -0.065 }],
   ['.section-title', { sweep: false, letterSpacing: -0.045 }]
   // Small sub-headings (About, Skills) stay plain text: at that size, over the artwork,
   // the dashed outline reads as broken letters
@@ -823,7 +822,7 @@ function initTechText() {
       instances.push(window.createTechText(host, Object.assign({
         text,
         color: 'inherit',
-        accentColor: '#c9a46a',
+        accentColor: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#c9a46a',
         align: 'auto',
         padX: 0,
         dashLength: 4,
@@ -836,29 +835,11 @@ function initTechText() {
   return instances;
 }
 
-/**
- * Halftone lens over the portrait. The transparent canvas stays inactive until the pointer
- * enters the image, so the portrait's original ASCII texture remains clear at rest.
- */
-function initPhotoHalftone() {
-  const canvas = document.querySelector('.hero-halftone');
-  const photo = document.querySelector('.hero-photo');
-  if (!canvas || !photo || typeof window.createHalftone !== 'function') return null;
-  return window.createHalftone(canvas, {
-    host: photo,
-    color: '#f2efe9',
-    accent: '#a53640',
-    restAlpha: 0,
-    lensRadius: 250,
-    idle: false
-  });
-}
-
 if (typeof document !== 'undefined') {
   document.addEventListener('DOMContentLoaded', () => {
-    // TechText on the hero name and section titles (mouse devices only; touch keeps plain text)
-    initTechText();
-    initPhotoHalftone();
+    // TechText on the section titles (mouse devices only; touch keeps plain text). The hero name
+    // stays plain type: the hover frame and specks fought with the poster layout.
+    window.__techText = initTechText();
     // Runs once per load; anchor navigation never re-triggers it. Replay is the footer button.
     initDrumIntro({ replayBtn: document.querySelector('.replay-btn') }).play();
     initNav();

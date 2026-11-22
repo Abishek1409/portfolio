@@ -746,6 +746,7 @@
     return {
       update(next) {
         settings = Object.assign({}, settings, next);
+        readInherited();   // colours may have changed with the theme
         layoutKey = '';
         wake();
       },

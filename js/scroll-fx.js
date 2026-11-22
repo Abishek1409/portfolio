@@ -1,7 +1,7 @@
 // scroll-fx.js: smooth (inertial) scrolling and scroll-linked effects.
 //   1. Lenis smooth scrolling on mouse/trackpad (native touch scrolling is left alone)
 //   2. Progress bar under the nav
-//   3. Hero parallax: writes --hero-p (0..1) on the hero; the CSS turns it into motion
+//   3. (The hero's scroll story lives in js/story.js)
 //   4. Marquee band: each row slides sideways with the scroll position
 // Everything is skipped with prefers-reduced-motion. Effects only move transform/opacity.
 'use strict';
@@ -73,7 +73,7 @@
   /* ─── 2–4. Scroll-linked effects, all driven by one rAF-throttled listener ─ */
   function initScrollEffects() {
     const header = document.querySelector('.site-header');
-    const hero = document.getElementById('hero');
+
     const rows = Array.from(document.querySelectorAll('.marquee-row'));
     const marquee = document.querySelector('.marquee');
 
@@ -100,12 +100,6 @@
       const max = Math.max(1, root.scrollHeight - window.innerHeight);
 
       if (bar) bar.style.transform = `scaleX(${Math.min(1, Math.max(0, y / max)).toFixed(4)})`;
-
-      if (hero && !reduced) {
-        const h = hero.offsetHeight || window.innerHeight;
-        const p = Math.min(1, Math.max(0, y / h));
-        hero.style.setProperty('--hero-p', p.toFixed(4));
-      }
 
       if (!reduced) {
         // Offset relative to when the band enters the screen, so it starts in the same place

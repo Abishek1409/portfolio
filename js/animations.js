@@ -20,12 +20,20 @@ function initParticles() {
     'z-index:0',
     'opacity:0.55',
   ].join(';');
-  hero.style.position = 'relative';
-  hero.insertBefore(canvas, hero.firstChild);
+  // The hero is several screens tall in story mode; the particles live on its pinned stage
+  const host = hero.querySelector('.hero-sticky') || hero;
+  host.insertBefore(canvas, host.firstChild);
 
   const ctx = canvas.getContext('2d');
-  const ACCENT = [201, 164, 106];
-  const MUTED  = [184, 179, 168];
+  // Colours come from the hero's theme tokens (gold on night, white on the red day hero)
+  const readRgb = (name, fallback) => (getComputedStyle(hero).getPropertyValue(name).trim() || fallback)
+    .split(',').map((v) => parseFloat(v));
+  const ACCENT = readRgb('--accent-rgb', '201,164,106');
+  const MUTED  = readRgb('--muted-rgb', '184,179,168');
+  document.addEventListener('themechange', () => requestAnimationFrame(() => {
+    ACCENT.splice(0, 3, ...readRgb('--accent-rgb', '201,164,106'));
+    MUTED.splice(0, 3, ...readRgb('--muted-rgb', '184,179,168'));
+  }));
   const COUNT  = 70;
   let W, H, particles;
 
@@ -45,9 +53,10 @@ function initParticles() {
   }
 
   function resize() {
-    W = canvas.width  = hero.offsetWidth;
-    H = canvas.height = hero.offsetHeight;
+    W = canvas.width  = host.offsetWidth;
+    H = canvas.height = host.offsetHeight;
     if (!particles) particles = Array.from({ length: COUNT }, makeParticle);
+    else particles.forEach((p) => { p.x %= W; p.y %= H; }); // keep them on the resized stage
   }
 
   // Only animate while the hero is on screen and the tab is visible. Otherwise this loop keeps
@@ -81,7 +90,9 @@ function initParticles() {
   }
 
   resize();
-  window.addEventListener('resize', resize, { passive: true });
+  // The stage changes size when story mode switches on, so follow the host, not just the window
+  if ('ResizeObserver' in window) new ResizeObserver(resize).observe(host);
+  else window.addEventListener('resize', resize, { passive: true });
   document.addEventListener('visibilitychange', setRunning);
   if ('IntersectionObserver' in window) {
     new IntersectionObserver((entries) => {
@@ -275,7 +286,11 @@ function initContactConstellation() {
 
   const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const touch = window.matchMedia('(hover: none), (pointer: coarse)').matches;
-  const GOLD = '201,164,106';
+  let GOLD = getComputedStyle(document.documentElement).getPropertyValue('--accent-rgb').trim() || '201,164,106';
+  document.addEventListener('themechange', () => requestAnimationFrame(() => {
+    GOLD = getComputedStyle(document.documentElement).getPropertyValue('--accent-rgb').trim() || GOLD;
+    if (!raf) draw(0);
+  }));
   let W = 0, H = 0, dpr = 1, nodes = [], linkDist = 140;
   let pointer = null;
   let raf = 0, visible = false, last = 0;
@@ -412,7 +427,7 @@ function injectStyles() {
   top: -18rem; left: -18rem;
   width: 36rem; height: 36rem;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(201,164,106,0.07) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(var(--accent-rgb), 0.07) 0%, transparent 70%);
   pointer-events: none;
   z-index: 9999;
   will-change: transform;
@@ -420,7 +435,7 @@ function injectStyles() {
 
 /* ── Nav shrink on scroll ── */
 .site-header.scrolled {
-  background: rgba(10,10,15,0.97);
+  background: rgba(var(--bg-rgb), 0.97);
   box-shadow: 0 1px 20px rgba(0,0,0,0.5);
 }
 
@@ -438,7 +453,7 @@ function injectStyles() {
               box-shadow 0.3s cubic-bezier(0.22,1,0.36,1);
 }
 .achievement-list li.achievement-hover:hover {
-  box-shadow: -3px 0 0 var(--accent), 0 0 24px rgba(201,164,106,0.2), 0 8px 24px rgba(0,0,0,0.3);
+  box-shadow: -3px 0 0 var(--accent), 0 0 24px rgba(var(--accent-rgb), 0.2), 0 8px 24px rgba(0,0,0,0.3);
 }
 
 /* ── Skill group spotlight ── */
@@ -446,7 +461,7 @@ function injectStyles() {
   opacity: 1;
   background: radial-gradient(
     circle at var(--sg-mx, 50%) var(--sg-my, 50%),
-    rgba(201,164,106,0.13) 0%,
+    rgba(var(--accent-rgb), 0.13) 0%,
     transparent 60%
   );
 }
@@ -457,7 +472,7 @@ function injectStyles() {
   position: absolute;
   width: 10px; height: 10px;
   border-radius: 50%;
-  background: rgba(201,164,106,0.35);
+  background: rgba(var(--accent-rgb), 0.35);
   transform: translate(-50%, -50%) scale(0);
   animation: cc-ripple 0.65s ease-out forwards;
   pointer-events: none;
