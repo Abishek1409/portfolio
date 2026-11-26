@@ -22,8 +22,6 @@
   <script src="js/animations.js" defer></script>
   <script src="js/scroll-fx.js" defer></script>
   <script src="js/theme.js" defer></script>
-  <!-- Three.js for the animated 3D avatar in the hero (js/avatar.js) -->
-  <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
   <script src="js/avatar.js" defer></script>
 </head>
 <body>
@@ -84,7 +82,7 @@
             </div>
 
             <div class="hero-visual">
-              <!-- js/avatar.js draws an animated 3D version of the portrait here; the photo is the fallback -->
+              <!-- js/avatar.js puts the living cartoon portrait here (eyes follow the pointer); the photo is the fallback -->
               <div class="hero-photo" data-stagger="5">
                 <picture>
                   <source srcset="assets/hero-portrait.webp" type="image/webp">

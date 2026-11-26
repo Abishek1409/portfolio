@@ -387,34 +387,41 @@ section { scroll-margin-top: var(--nav-h); }
   border-radius: 50%;
 }
 
-/* Animated 3D avatar (js/avatar.js). The disc is drawn here, not in WebGL, so each theme picks its
-   colour: red on the dark page, cream on the red day-mode hero. The canvas is clipped to the disc
-   below its middle (so the shoulders end at the circle) but the head may rise above it. */
-.hero-photo {
-  --avatar-disc: #c8362f;
-  --avatar-disc-inset: 6%;
-}
+/* Living cartoon portrait (js/avatar.js): the picture with its eyes, lids and brows redrawn as
+   SVG on top. No disc behind it: it stands straight on the hero background in both themes, with a
+   faint glow so dark hair still reads on the night page, and the shoulders fade out at the bottom
+   and sides instead of ending in a hard edge. */
 .hero-photo.has-avatar { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .hero-photo.has-avatar picture { display: none; }
 .hero-photo.has-avatar::before {
   content: '';
   position: absolute;
-  inset: var(--avatar-disc-inset);
+  inset: 2% 14% 22%;
   border-radius: 50%;
-  background:
-    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.16), transparent 60%),
-    var(--avatar-disc);
-  transition: background-color 0.4s var(--ease-out, ease);
+  background: radial-gradient(closest-side, rgba(var(--text-rgb), 0.09), transparent);
+  pointer-events: none;
 }
-.hero-avatar {
+.avatar2d {
   position: absolute;
   inset: 0;
-  display: block;
+  perspective: 1100px;
+  -webkit-mask:
+    linear-gradient(to right, transparent, #000 10%, #000 90%, transparent),
+    linear-gradient(#000 74%, transparent 98%);
+  -webkit-mask-composite: source-in;
+  mask:
+    linear-gradient(to right, transparent, #000 10%, #000 90%, transparent),
+    linear-gradient(#000 74%, transparent 98%);
+  mask-composite: intersect;
+}
+.hero-photo:not(.has-avatar) .avatar2d { visibility: hidden; }
+.avatar2d-tilt {
   width: 100%;
   height: 100%;
-  -webkit-mask: radial-gradient(circle closest-side, #000 calc(88% - 1px), transparent 88%), linear-gradient(#000 50%, transparent 50%);
-          mask: radial-gradient(circle closest-side, #000 calc(88% - 1px), transparent 88%), linear-gradient(#000 50%, transparent 50%);
+  transform-origin: 50% 70%;
+  will-change: transform;
 }
+.avatar2d-svg { display: block; width: 100%; height: 100%; overflow: visible; }
 
 .hero-foot {
   padding-top: 0.85rem;
@@ -556,7 +563,6 @@ html.lenis, html.lenis body { height: auto; }
   --border: rgba(255, 250, 244, 0.3);
 }
 /* Companion in day mode: white body with black ink, a black antenna tip */
-:root[data-theme="light"] .hero-photo { --avatar-disc: #fffaf4; }   /* cream disc stands apart from the red hero */
 :root[data-theme="light"] .hero-photo img { box-shadow: 0 0 0 4px var(--text); }  /* white ring keeps the red disc apart from the red hero */
 :root[data-theme="light"] .hero-status-dot { background: #fffaf4; }
 :root[data-theme="light"] .hero-status-dot::after { background: rgba(255, 250, 244, 0.6); }
