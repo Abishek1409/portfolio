@@ -511,9 +511,28 @@ section { scroll-margin-top: var(--nav-h); }
 .yy-dark { fill: currentColor; }
 .yy-light { fill: var(--bg); }
 
-/* The new theme spreads from the button as a circle (js/theme.js animates the clip-path) */
+/* Theme switch: the old theme burns away (js/theme.js). The new page's snapshot (drawn above the
+   old one) is clipped to the burnt area, so the old page shows everywhere the fire hasn't reached.
+   Until the first outline arrives the new page is fully hidden. The old snapshot is held for as
+   long as the burn runs, then the script ends the transition. The ember canvas has its own
+   transition name so it draws above both pages. */
 ::view-transition-old(root),
 ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+.is-burning::view-transition-old(root) { animation: burn-hold 2.4s linear both; }
+.is-burning::view-transition-new(root) { clip-path: var(--burn-clip, inset(50%)); }
+@keyframes burn-hold { from { opacity: 1; } to { opacity: 1; } }
+.burn-fx {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 10000;
+  filter: blur(1.5px);          /* softens the small field's cell steps; done on the GPU */
+  view-transition-name: burn-fx;
+}
+::view-transition-group(burn-fx),
+::view-transition-new(burn-fx) { animation: none; }
 
 /* ===== Scroll progress bar (under the nav) ===== */
 .scroll-progress {

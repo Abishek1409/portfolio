@@ -5,9 +5,9 @@
 //  - it blinks every few seconds, now and then twice
 //  - the whole portrait tilts toward the pointer in 3D and breathes gently
 //  - expressions (assets/avatar-happy|sad|angry.webp) fade in over the face:
-//      happy  when clicked, or while the pointer is on the hero buttons
+//      happy  when clicked, or while the mouse is on the hero buttons (on phones: tapping them)
 //      angry  when clicked several times in a row
-//      sad    while the pointer is off the page; coming back, it looks surprised
+//      sad    while the mouse is off the page; coming back, it looks surprised (desktop only)
 //  - hovering the portrait lifts its brows and widens its pupils
 // The brows sit on their own layers (assets/brow-l.png, brow-r.png) with skin filled in behind.
 // Everything is drawn in the picture's own pixels (an 896 x 896 viewBox), so it scales with the box.
@@ -136,8 +136,10 @@
   };
   window.addEventListener('pointermove', onPointer, { passive: true });
   window.addEventListener('pointerdown', onPointer, { passive: true });
-  host.addEventListener('pointerenter', () => { hovering = true; });
-  host.addEventListener('pointerleave', () => { hovering = false; });
+  // Hover only means something for a mouse: a finger "enters" on touch and "leaves" when it lifts
+  const isMouse = (e) => e.pointerType === 'mouse' || e.pointerType === 'pen';
+  host.addEventListener('pointerenter', (e) => { if (isMouse(e)) hovering = true; });
+  host.addEventListener('pointerleave', (e) => { if (isMouse(e)) hovering = false; });
 
   // Live reactions drawn with the eyes and brows (surprise) and the whole portrait (hop)
   let reaction = null, reactT = 0;
@@ -168,13 +170,19 @@
   // Pointer on the hero buttons: happy
   let onButton = false;
   document.querySelectorAll('.hero-ctas a').forEach((a) => {
-    a.addEventListener('pointerenter', () => { onButton = true; wake(); });
-    a.addEventListener('pointerleave', () => { onButton = false; wake(); });
+    a.addEventListener('pointerenter', (e) => { if (isMouse(e)) { onButton = true; wake(); } });
+    a.addEventListener('pointerleave', (e) => { if (isMouse(e)) { onButton = false; wake(); } });
+    a.addEventListener('pointerdown', (e) => { if (!isMouse(e)) showFace('happy', 1.4); });   // phones: on tap
   });
 
-  // Pointer leaves the page: sad. Back again: surprised to see you.
+  // Mouse leaves the page: sad. Back again: surprised to see you.
+  // Mouse only: on a phone every lifted finger fires pointerleave, which kept it sad all the time.
   let offPage = false;
-  document.documentElement.addEventListener('pointerleave', () => { offPage = true; wake(); });
+  document.documentElement.addEventListener('pointerleave', (e) => {
+    if (!isMouse(e)) return;
+    offPage = true;
+    wake();
+  });
   document.addEventListener('pointerenter', () => { if (offPage) { offPage = false; react('surprise'); } });
   window.addEventListener('pointermove', () => { if (offPage) { offPage = false; react('surprise'); } }, { passive: true });
 
