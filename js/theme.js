@@ -24,11 +24,12 @@
     if (label) label.textContent = 'Day mode';
   }
 
-  function apply(theme) {
+  const announce = (theme) => document.dispatchEvent(new CustomEvent('themechange', { detail: { theme } }));
+  function apply(theme, quiet) {
     if (theme === 'light') root.dataset.theme = 'light';
     else delete root.dataset.theme;
     try { localStorage.setItem('theme', theme); } catch (e) { /* private mode: not remembered */ }
-    document.dispatchEvent(new CustomEvent('themechange', { detail: { theme } }));
+    if (!quiet) announce(theme);
   }
 
   // ---- Burn ----
@@ -52,32 +53,56 @@
     return (x, y) => value(x, y) * 0.55 + value(x * 2.1, y * 2.1) * 0.3 + value(x * 4.3, y * 4.3) * 0.15;
   }
 
-  function burn(originX, originY, update) {
-    const w = innerWidth, h = innerHeight;
+  // Everything about a burn that doesn't change while it runs: when each point catches fire,
+  // sampled along rays from the button, and which ray each cell of the effects field sits on.
+  // This is the costly part, so it is worked out ahead of time (see prepareSoon) rather than on
+  // the click, which would hold up the start.
+  function prepare(originX, originY, w, h) {
     const gw = Math.ceil(w / CELL), gh = Math.ceil(h / CELL);
-
-    // When each point catches fire, 0..1: mostly distance from the button, roughened by noise
     const noise = makeNoise((Math.random() * 1e6) | 0);
     const maxD = Math.hypot(Math.max(originX, w - originX), Math.max(originY, h - originY));
-    const fireAt = (x, y) => (Math.hypot(x - originX, y - originY) / maxD) * 0.8 + noise(x / 140, y / 140) * 0.24;
+    // Noise worked out once on a coarse grid; the rays read it back with bilinear lookups
+    const NG = 8, nw = Math.ceil(w / NG) + 2, nh = Math.ceil(h / NG) + 2;
+    const grid = new Float32Array(nw * nh);
+    for (let y = 0; y < nh; y++) for (let x = 0; x < nw; x++) grid[y * nw + x] = noise(x * NG / 140, y * NG / 140);
+    const noiseAt = (px, py) => {
+      const gx = Math.min(nw - 1.001, Math.max(0, px / NG)), gy = Math.min(nh - 1.001, Math.max(0, py / NG));
+      const x0 = gx | 0, y0 = gy | 0, fx = gx - x0, fy = gy - y0, i = y0 * nw + x0;
+      const top = grid[i] + (grid[i + 1] - grid[i]) * fx;
+      const bot = grid[i + nw] + (grid[i + nw + 1] - grid[i + nw]) * fx;
+      return top + (bot - top) * fy;
+    };
+    const fireAt = (x, y) => (Math.hypot(x - originX, y - originY) / maxD) * 0.8 + noiseAt(x, y) * 0.24;
 
-    // The burnt area is traced along rays from the button: on each ray, the fire has reached the
-    // first point whose time has come. Sample every ray once up front.
-    const RAYS = 720, STEP = 4;
-    const reach = maxD * 1.05;
-    const raySamples = [];
+    // On each ray, the fire has reached the first point whose time has come
+    const RAYS = 540, STEP = 5;
+    const n = Math.ceil((maxD * 1.05) / STEP) + 1;
+    const rays = [];
+    let tMin = Infinity, tMax = -Infinity;
     for (let k = 0; k < RAYS; k++) {
       const ang = (k / RAYS) * Math.PI * 2, cx = Math.cos(ang), cy = Math.sin(ang);
-      const n = Math.ceil(reach / STEP) + 1;
       const arr = new Float32Array(n);
-      for (let i = 0; i < n; i++) arr[i] = fireAt(originX + cx * i * STEP, originY + cy * i * STEP);
-      raySamples.push({ cx, cy, arr });
+      for (let i = 0; i < n; i++) {
+        const t = fireAt(originX + cx * i * STEP, originY + cy * i * STEP);
+        arr[i] = t;
+        if (t < tMin) tMin = t;
+        const x = originX + cx * i * STEP, y = originY + cy * i * STEP;
+        if (x >= 0 && y >= 0 && x <= w && y <= h && t > tMax) tMax = t;
+      }
+      rays.push({ cx, cy, arr });
     }
-    const front = new Float32Array(RAYS);         // radius of the burnt area on each ray, px
-    const smoothFront = new Float32Array(RAYS);
+    // Rescale so the button catches at 0 and the last on-screen point at 1: no dead time
+    const span = tMax - tMin || 1;
+    rays.forEach((ray) => { for (let i = 0; i < n; i++) ray.arr[i] = (ray.arr[i] - tMin) / span; });
 
-    // Each cell of the small effects field: its distance from the button and its ray
-    const cellD = new Float32Array(gw * gh), cellRay = new Uint16Array(gw * gh);
+    return mapCells({ originX, originY, w, h, gw, gh, maxD, RAYS, STEP, rays });
+  }
+
+  // Which ray each cell of the effects field sits on, and how far it is from the button. Cheap,
+  // so a prepared burn can be moved to wherever the button is now (the noise is random anyway).
+  function mapCells(f) {
+    const { gw, gh, RAYS, originX, originY } = f;
+    const cellD = f.cellD || new Float32Array(gw * gh), cellRay = f.cellRay || new Uint16Array(gw * gh);
     for (let y = 0; y < gh; y++) {
       for (let x = 0; x < gw; x++) {
         const dx = x * CELL + CELL / 2 - originX, dy = y * CELL + CELL / 2 - originY;
@@ -85,6 +110,15 @@
         cellRay[y * gw + x] = Math.round(((Math.atan2(dy, dx) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI * 2) * RAYS) % RAYS;
       }
     }
+    f.cellD = cellD; f.cellRay = cellRay;
+    return f;
+  }
+
+  function burn(field, update) {
+    const { originX, originY, w, h, gw, gh, maxD, RAYS, STEP, cellD, cellRay } = field;
+    const raySamples = field.rays;
+    const front = new Float32Array(RAYS);         // radius of the burnt area on each ray, px
+    const smoothFront = new Float32Array(RAYS);
 
     // Embers and char, drawn small and scaled up soft
     const fxSmall = document.createElement('canvas');
@@ -107,7 +141,7 @@
     ctx.scale(SCALE, SCALE);
 
     const sparks = [];
-    let progress = -0.06;
+    let progress = 0;
     const EMBER = maxD * 0.05, CHAR = maxD * 0.035;
 
     function paint(dt) {
@@ -146,7 +180,7 @@
         }
       }
       // Sparks fly off the front now and then
-      if (P > 0 && P < 1.05) {
+      if (P > 0 && P < 1.02) {
         for (let n = 0; n < 4 && sparks.length < 260; n++) {
           const k = (Math.random() * RAYS) | 0, r = smoothFront[k], ray = raySamples[k];
           const x = originX + ray.cx * r, y = originY + ray.cy * r;
@@ -192,7 +226,8 @@
             const dt = Math.min(0.05, (now - last) / 1000);
             last = now;
             const u = Math.min(1, (now - t0) / BURN_MS);
-            progress = -0.06 + 1.2 * (u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2) ** 0.85;
+            // Catches at once, spreads fast, slows as it reaches the far corner
+            progress = 0.015 + 1.02 * (1 - Math.pow(1 - u, 1.6));
             paint(dt);
             if (u < 1 || sparks.length) requestAnimationFrame(frame);
             else resolve();
@@ -209,6 +244,36 @@
     if (!btn) return;
     syncButton(btn);
 
+    // Keep a burn ready for the next click, worked out when the browser is idle
+    let field = null;
+    // An always-animating page may never be idle, so don't wait more than a moment
+    const idle = window.requestIdleCallback
+      ? (fn) => window.requestIdleCallback(fn, { timeout: 800 })
+      : (fn) => setTimeout(fn, 200);
+    // The prepared burn, lit at the button's current spot (it may have moved since, e.g. while
+    // the page intro was still sliding the header in), or null if the window has changed size
+    function fresh() {
+      if (!field || field.w !== innerWidth || field.h !== innerHeight) return null;
+      const r = btn.getBoundingClientRect();
+      const x = r.left + r.width / 2, y = r.top + r.height / 2;
+      if (Math.abs(field.originX - x) > 1 || Math.abs(field.originY - y) > 1) {
+        field.originX = x; field.originY = y;
+        mapCells(field);
+      }
+      return field;
+    }
+    function prepareSoon() {
+      idle(() => {
+        if (fresh()) return;
+        const r = btn.getBoundingClientRect();
+        field = prepare(r.left + r.width / 2, r.top + r.height / 2, innerWidth, innerHeight);
+      });
+    }
+    if (document.readyState === 'complete') prepareSoon();
+    else window.addEventListener('load', prepareSoon);
+    let resizeTimer = 0;
+    window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(prepareSoon, 300); });
+
     let busy = false;
     btn.addEventListener('click', () => {
       if (busy) return;
@@ -224,23 +289,36 @@
       }
 
       busy = true;
+      // The button lights up at once, while the browser takes its snapshot of the page
+      btn.classList.add('is-lit');
+      setTimeout(() => btn.classList.remove('is-lit'), 900);
       const r = btn.getBoundingClientRect();
-      const fire = burn(r.left + r.width / 2, r.top + r.height / 2, (clip) => {
-        root.style.setProperty('--burn-clip', clip);
-      });
+      const ready = fresh() || prepare(r.left + r.width / 2, r.top + r.height / 2, innerWidth, innerHeight);
+      field = null;                               // each burn gets a new shape
+      const fire = burn(ready, (clip) => root.style.setProperty('--burn-clip', clip));
       root.classList.add('is-burning');
+      // Swap the theme without telling the canvases yet: their redraw would hold up the snapshot.
+      // The new page under the fire is live, so they recolour as soon as the burn is under way.
       const vt = document.startViewTransition(() => {
-        apply(next);
+        apply(next, true);
         syncButton(btn);
         document.body.appendChild(fire.canvas);
       });
+      let told = false;
+      const tell = () => { if (!told) { told = true; announce(next); } };
       const done = () => {
+        tell();
         fire.canvas.remove();
         root.classList.remove('is-burning');
         root.style.removeProperty('--burn-clip');
         busy = false;
+        prepareSoon();
       };
-      vt.ready.then(() => fire.start()).then(() => vt.skipTransition && vt.skipTransition(), done);
+      vt.ready.then(() => {
+        const running = fire.start();
+        requestAnimationFrame(tell);
+        return running;
+      }).then(() => vt.skipTransition && vt.skipTransition(), done);
       vt.finished.then(done, done);
     });
 
