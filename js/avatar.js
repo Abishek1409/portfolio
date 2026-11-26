@@ -4,8 +4,11 @@
 //    when the pointer is right on the face; pupils widen when you hover the portrait
 //  - it blinks every few seconds, now and then twice
 //  - the whole portrait tilts toward the pointer in 3D and breathes gently
-//  - clicking it cycles through reactions: surprised (brows up, a hop), a wink, a nod
-//  - left alone for a while its eyelids droop; it wakes up surprised
+//  - expressions (assets/avatar-happy|sad|angry.webp) fade in over the face:
+//      happy  when clicked, or while the pointer is on the hero buttons
+//      angry  when clicked several times in a row
+//      sad    while the pointer is off the page; coming back, it looks surprised
+//  - hovering the portrait lifts its brows and widens its pupils
 // The brows sit on their own layers (assets/brow-l.png, brow-r.png) with skin filled in behind.
 // Everything is drawn in the picture's own pixels (an 896 x 896 viewBox), so it scales with the box.
 // If the picture can't load, the portrait photo inside .hero-photo simply stays.
@@ -104,6 +107,13 @@
     return { e, iris, pupil, lid, close: 0 };
   });
 
+  // Expression pictures cover the whole live face while they show
+  const FACES = ['happy', 'sad', 'angry'];
+  const faces = {};
+  FACES.forEach((name) => {
+    faces[name] = { node: el('image', { href: `assets/avatar-${name}.webp`, x: 0, y: 0, width: 896, height: 896, opacity: 0 }, svg), o: 0 };
+  });
+
   // Swap in once the picture is ready
   img.addEventListener('error', () => wrap.remove());
   img.addEventListener('load', () => {
@@ -129,19 +139,44 @@
   host.addEventListener('pointerenter', () => { hovering = true; });
   host.addEventListener('pointerleave', () => { hovering = false; });
 
-  // Reactions, one per click in turn
-  const REACTIONS = ['surprise', 'wink', 'nod'];
-  let nextReaction = 0;
+  // Live reactions drawn with the eyes and brows (surprise) and the whole portrait (hop)
   let reaction = null, reactT = 0;
   function react(kind) {
     reaction = kind;
     reactT = 0;
     wake();
   }
+
+  // Expressions: one of the pictures shown for a while
+  let face = null, faceUntil = 0;
+  function showFace(name, seconds) {
+    face = name;
+    faceUntil = performance.now() + seconds * 1000;
+    wake();
+  }
+
+  // Click: a happy hop. Several clicks in quick succession: angry.
+  const clicks = [];
   host.addEventListener('click', () => {
-    react(REACTIONS[nextReaction]);
-    nextReaction = (nextReaction + 1) % REACTIONS.length;
+    const now = performance.now();
+    clicks.push(now);
+    while (clicks.length && now - clicks[0] > 1600) clicks.shift();
+    if (clicks.length >= 4) { showFace('angry', 2.6); clicks.length = 0; }
+    else if (face !== 'angry') { showFace('happy', 1.6); react('hop'); }
   });
+
+  // Pointer on the hero buttons: happy
+  let onButton = false;
+  document.querySelectorAll('.hero-ctas a').forEach((a) => {
+    a.addEventListener('pointerenter', () => { onButton = true; wake(); });
+    a.addEventListener('pointerleave', () => { onButton = false; wake(); });
+  });
+
+  // Pointer leaves the page: sad. Back again: surprised to see you.
+  let offPage = false;
+  document.documentElement.addEventListener('pointerleave', () => { offPage = true; wake(); });
+  document.addEventListener('pointerenter', () => { if (offPage) { offPage = false; react('surprise'); } });
+  window.addEventListener('pointermove', () => { if (offPage) { offPage = false; react('surprise'); } }, { passive: true });
 
   // ---- Animation ----
   const gaze = { x: 0, y: 0 };
@@ -150,7 +185,6 @@
   let pupilScale = 1;
   let t = 0, last = performance.now(), raf = 0, visible = true;
   let blinkT = 0, nextBlink = 1.2, blinkTwice = false;
-  let wasSleepy = false;
 
   const damp = (cur, target, dt, s) => cur + (target - cur) * (1 - Math.exp(-dt / s));
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -184,18 +218,23 @@
     const near = pointer.active && Math.hypot(pointer.x - fx, pointer.y - fy) < rect.width * 0.18 ? 1 : 0;
 
     // Reactions
-    let surprise = 0, wink = 0, nod = 0, hop = 0;
+    let surprise = 0, hop = 0;
     if (reaction) {
       reactT += dt;
       if (reaction === 'surprise') { surprise = bump(reactT / 1.1); hop = bump(reactT / 0.45); }
-      if (reaction === 'wink') wink = bump(reactT / 0.5);
-      if (reaction === 'nod') nod = Math.sin(clamp(reactT / 0.7, 0, 1) * Math.PI * 2) * Math.max(0, 1 - reactT / 0.7);
+      if (reaction === 'hop') hop = bump(reactT / 0.4);
       if (reactT > 1.2) reaction = null;
     }
 
-    // Sleepy after a while with nothing moving; wakes up surprised
-    const sleepy = !reduced && idle > 12 ? clamp((idle - 12) / 3, 0, 1) : 0;
-    if (sleepy > 0.5) wasSleepy = true;
+    // Which expression shows: a timed one (click, clicks), else the page state
+    if (face && now > faceUntil) face = null;
+    const want = face || (offPage ? 'sad' : onButton ? 'happy' : null);
+    FACES.forEach((name) => {
+      const f = faces[name];
+      f.o = damp(f.o, want === name ? 1 : 0, dt, 0.07);
+      if (f.o < 0.002) f.o = 0;
+      f.node.setAttribute('opacity', f.o.toFixed(3));
+    });
 
     // Blink every few seconds, sometimes twice
     let blink = 0;
@@ -217,31 +256,27 @@
       const dx = clamp(gaze.x * TRAVEL.x - side * near * 3, -TRAVEL.x, TRAVEL.x);
       const dy = clamp(gaze.y * TRAVEL.y, -TRAVEL.y, TRAVEL.y);
       eye.iris.setAttribute('transform', `translate(${dx.toFixed(2)} ${dy.toFixed(2)})`);
-      let close = sleepy * 0.55 + blink;
-      if (i === 1) close = Math.max(close, wink);
-      close = clamp(close - surprise * 0.2, 0, 1);
-      eye.close = damp(eye.close, close, dt, blink || wink ? 0.012 : 0.07);
+      const close = clamp(blink - surprise * 0.2, 0, 1);
+      eye.close = damp(eye.close, close, dt, blink ? 0.012 : 0.07);
       eye.lid.setAttribute('transform', `translate(0 ${(eye.close * LID_SHUT).toFixed(2)})`);
     });
     pupilScale = damp(pupilScale, hovering ? 1.22 : surprise ? 0.75 : 1, dt, 0.15);
     eyes.forEach((eye) => eye.pupil.setAttribute('r', (PUPIL_R * pupilScale).toFixed(2)));
 
-    // Brows: up when surprised or hovered, one cocked with the wink, down when sleepy
+    // Brows: up when surprised, a little when hovered
     brows.forEach((b, i) => {
-      let lift = surprise * 12 + (hovering ? 3 : 0) - sleepy * 3;
-      if (i === 0) lift += wink * 7;
-      if (i === 1) lift -= wink * 3;
+      const lift = surprise * 12 + (hovering ? 3 : 0);
       browNow[i] = damp(browNow[i], lift, dt, 0.06);
       b.setAttribute('transform', `translate(0 ${(-browNow[i]).toFixed(2)})`);
     });
 
-    // Whole portrait: tilts toward the pointer, breathes, hops, nods, cocks its head on a wink
+    // Whole portrait: tilts toward the pointer, breathes, hops
     tiltNow.x = damp(tiltNow.x, gaze.x, dt, 0.25);
     tiltNow.y = damp(tiltNow.y, gaze.y, dt, 0.25);
     const breath = reduced ? 0 : Math.sin(t * 1.6);
     const ry = tiltNow.x * 7;
-    const rx = -tiltNow.y * 5 + nod * 6;
-    const rz = wink * 4 + tiltNow.x * 1.2;
+    const rx = -tiltNow.y * 5;
+    const rz = tiltNow.x * 1.2;
     const lift = -hop * 3 + breath * 0.25;
     tilt.style.transform =
       `translateY(${lift.toFixed(2)}%) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg) rotate(${rz.toFixed(2)}deg) scale(${(1 + breath * 0.004).toFixed(4)})`;
@@ -250,7 +285,6 @@
   }
 
   function wake() {
-    if (wasSleepy) { wasSleepy = false; react('surprise'); return; }   // startled awake
     if (!raf && visible && !document.hidden) { last = performance.now(); raf = requestAnimationFrame(frame); }
   }
 
