@@ -292,7 +292,7 @@ section { scroll-margin-top: var(--nav-h); }
   font-variant-numeric: tabular-nums;
 }
 
-/* Name on the left, the companion on the right of the same row */
+/* The name row */
 .hero-headline {
   display: flex;
   align-items: center;
@@ -311,27 +311,6 @@ section { scroll-margin-top: var(--nav-h); }
   padding-top: 0.04em;
 }
 .hero-initial { color: var(--accent); }
-
-/* 3D companion (js/buddy.js draws into it). Taller than the name row, so negative margins let it
-   overhang the rules above and below instead of pushing the layout down. */
-.hero-buddy {
-  --buddy-body: var(--accent);
-  --buddy-white: #fbf8f2;
-  --buddy-iris: #2b1d14;
-  --buddy-ink: #0d0a0a;
-  --buddy-tip: #e0453c;
-  --buddy-blush: #ff6f6f;
-  --buddy-outline: #0d0a0a;
-  position: relative;
-  flex: 0 0 auto;
-  width: clamp(7.5rem, 15vw, 14rem);
-  aspect-ratio: 1;
-  margin-block: -2.5rem;
-  cursor: pointer;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-}
-.hero-buddy canvas { display: block; width: 100%; height: 100%; }
 
 .hero-body {
   display: grid;
@@ -408,6 +387,35 @@ section { scroll-margin-top: var(--nav-h); }
   border-radius: 50%;
 }
 
+/* Animated 3D avatar (js/avatar.js). The disc is drawn here, not in WebGL, so each theme picks its
+   colour: red on the dark page, cream on the red day-mode hero. The canvas is clipped to the disc
+   below its middle (so the shoulders end at the circle) but the head may rise above it. */
+.hero-photo {
+  --avatar-disc: #c8362f;
+  --avatar-disc-inset: 6%;
+}
+.hero-photo.has-avatar { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.hero-photo.has-avatar picture { display: none; }
+.hero-photo.has-avatar::before {
+  content: '';
+  position: absolute;
+  inset: var(--avatar-disc-inset);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.16), transparent 60%),
+    var(--avatar-disc);
+  transition: background-color 0.4s var(--ease-out, ease);
+}
+.hero-avatar {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  -webkit-mask: radial-gradient(circle closest-side, #000 calc(88% - 1px), transparent 88%), linear-gradient(#000 50%, transparent 50%);
+          mask: radial-gradient(circle closest-side, #000 calc(88% - 1px), transparent 88%), linear-gradient(#000 50%, transparent 50%);
+}
+
 .hero-foot {
   padding-top: 0.85rem;
   border-top: 1px solid var(--border);
@@ -443,13 +451,12 @@ section { scroll-margin-top: var(--nav-h); }
   .hero-tagline { margin-bottom: 1.25rem; }
 }
 
-/* Phones: name and companion on one row, then the portrait large and centred, then the copy */
+/* Phones: the name, then the portrait large and centred, then the copy */
 @media (max-width: 767.98px) {
   .hero-sticky { padding: calc(var(--nav-h) + 0.9rem) 1rem 1.25rem; }
   .hero-inner { gap: 0.8rem; }
   .hero-top, .hero-foot { font-size: 0.6875rem; }
   .hero-name { font-size: clamp(2.25rem, 12.5vw, 4rem); }
-  .hero-buddy { width: clamp(5rem, 27vw, 7.5rem); margin-block: -1.25rem; }
   .hero-body {
     display: flex;
     flex-direction: column;
@@ -549,7 +556,7 @@ html.lenis, html.lenis body { height: auto; }
   --border: rgba(255, 250, 244, 0.3);
 }
 /* Companion in day mode: white body with black ink, a black antenna tip */
-:root[data-theme="light"] .hero-buddy { --buddy-tip: #161111; --buddy-outline: #161111; --buddy-blush: #ff8f8f; }
+:root[data-theme="light"] .hero-photo { --avatar-disc: #fffaf4; }   /* cream disc stands apart from the red hero */
 :root[data-theme="light"] .hero-photo img { box-shadow: 0 0 0 4px var(--text); }  /* white ring keeps the red disc apart from the red hero */
 :root[data-theme="light"] .hero-status-dot { background: #fffaf4; }
 :root[data-theme="light"] .hero-status-dot::after { background: rgba(255, 250, 244, 0.6); }
